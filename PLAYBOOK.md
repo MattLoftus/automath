@@ -3,7 +3,7 @@
 **Project:** Automated Math Discovery (LLM-guided conjecture + Lean 4 formalization)
 **Dir:** `~/workspace/automath/`
 **Master playbook:** `~/workspace/MASTER_PLAYBOOK.md`
-**Status:** ROUND C IN PROGRESS (Sessions 1–4, 2026-04-27 → 2026-04-28). 4 of 10 calibration targets formalized (C1, C2, C4@k=2, C5). C8 partial: 6-fold triple-symmetry sub-lemmas done, Fubini main theorem `sorry`'d. Round D gate (≥ 5/10) **not yet cleared** — needs C8 main theorem completed. Aggregate per-step verification rate across sub-lemmas: 23/36 ≈ 64%, stable.
+**Status:** ROUND D GATE CLEARED (Sessions 1–5, 2026-04-27 → 2026-04-28). **5 of 10 calibration targets formalized** (C1, C2, C4@k=2, C5, C8). The Round D ≥ 5/10 gate is met — methods-paper floor locked at 7.0–7.5 per §12 rubric. Aggregate per-step verification rate: ~63% across 6 theorems and ~30+ sublemmas, consistent across rounds.
 **Created:** 2026-04-23
 **Owner:** Matt Loftus / Cedar Loop LLC
 
@@ -208,11 +208,11 @@ All taken from `~/workspace/quantum-gravity/papers/exact-combinatorics/`. Matt p
 | C5 | P(poset dim = 2) = 1 − 1/N! | **DONE 2026-04-28 (full proof, including dim bridge)** — counting form `#{σ ≠ τ} + N! = (N!)²` (Round B) + `is2OrderTotallyOrdered ⇔ σ = τ` bridge (Round C). 151 lines total. Hard direction proved via `StrictMono.range_inj` + `Equiv.range_eq_univ` + `mul_inv_eq_one`. |
 | C6 | Var[f] = (2N+5) / (18N(N−1)) | Harder (computation with 2nd moments) |
 | C7 | Tracy-Widom antichain: antichain size fluctuations | Hard (uses BDJ theorem — may hit Mathlib wall) |
-| C8 | E[\|interval interior\| \| i ≺ j] = (N-2)/9 (Interval-statistics proposition; original "P(link)" framing replaced with the cleaner expected-interval form) | **PARTIAL 2026-04-28** (Session 4): the 6-fold triple-symmetry sub-lemma `6·permLt3Count = N!` proved (this is the genuine new mathematical content), as is `sum_perm_pair_factor3`. Main theorem `EIntervalSize_counting` and `card_distinct_triples` `sorry`'d — Fubini orchestration deferred to Session 5. 338 lines. |
+| C8 | E[\|interval interior\| \| i ≺ j] = (N-2)/9 (Interval-statistics proposition) | **DONE 2026-04-28** (Sessions 4–5): counting form `36·∑ totalIntervalCount = N(N-1)(N-2)·(N!)²`. 460 lines. Hardest target so far — 16 sublemmas at 11/16 ≈ 69% first-try. Key new machinery: `six_mul_permLt3Count` (6-fold triple symmetry, generalizes C1's 2-fold pair symmetry) + Fubini swap helper + per-triple combined identity. |
 | C9 | P(Hasse connected) for N=2-6 (exact values) | Hard for N>2 — depends on Mathlib coverage of Hasse diagrams |
 | C10 | E[maximal chains] exact formula | Moderate |
 
-**Ordered calibration plan:** ✅ C1 (Round A), C2 + C5-counting + C5-easy-bridge (Round B), C5-hard-bridge + C4@k=2 (Round C, Session 3), C8 sub-lemmas (Round C, Session 4). Next session: finish C8 main theorem, then C3 (harmonic) or C6 (variance). Then C4 general k. C7 (Tracy-Widom) and C9 (Hasse) likely Mathlib-blocked; defer.
+**Ordered calibration plan:** ✅ C1 (Round A), ✅ C2 + C5-counting + C5-easy-bridge (Round B), ✅ C5-hard-bridge + C4@k=2 (Round C, Session 3), ✅ C8 (Round C, Sessions 4–5). **5/10 done — Round D gate cleared.** Next sessions: C3 (harmonic), C6 (variance — reuses C8's triple machinery), C4 general k, C10. C7 (Tracy-Widom) and C9 (Hasse) likely Mathlib-blocked; defer.
 
 ---
 
@@ -320,7 +320,7 @@ Minimal portfolio reuse — this is a net-new stack:
 | **Round B — Multi-theorem** | C2 + C5 formalize within ~1 session each | Proceed | Reassess Mathlib coverage | ✅ **PASSED 2026-04-28** (Session 2) — both compiled in 2 iterations each |
 | **Round B — Novelty check** | No close prior art on Lean+LLM pipeline for extremal combinatorics | Proceed | Pivot scope (e.g., Stirling identities) | ✅ **PASSED 2026-04-28** — `papers/novelty_check.md` |
 | **Round C — C5 dim bridge** | `is2OrderTotallyOrdered ⇔ σ = τ` proven, completing C5 | Proceed | Defer / accept partial C5 | ✅ **PASSED 2026-04-28** (Session 3, 1 fix) |
-| **Round D — Calibration** | ≥ 5 of 10 Paper G theorems pass | Methods paper + maybe stretch | Limitations paper | 4 of 10 done (C1, C2, C4@k=2, C5); 6 to go (1 more clears the gate) |
+| **Round D — Calibration** | ≥ 5 of 10 Paper G theorems pass | Methods paper + maybe stretch | Limitations paper | ✅ **PASSED 2026-04-28** (Session 5) — 5 of 10 done (C1, C2, C4@k=2, C5, C8). Methods paper floor locked at 7.0–7.5. |
 | **Round F — Cold-read** | Methods paper scores ≥ 6.5 | Submit | Revise | Pending |
 
 ---
@@ -388,8 +388,10 @@ Minimal portfolio reuse — this is a net-new stack:
 | C2 + C5 formalized | 2026-05-12 | ✅ 2026-04-28 (Session 2, 2 iterations each) |
 | C5 dim bridge (`is2OrderTotallyOrdered ⇔ σ = τ`) | 2026-05-15 | ✅ 2026-04-28 (Session 3) |
 | C4@k=2 formalized | 2026-05-15 | ✅ 2026-04-28 (Session 3) |
-| C3, C6, C8, C10 + C4 general k formalized | 2026-05-20 | Pending — Round C continuation |
-| Full calibration verdict | 2026-05-25 | Pending — Round D |
+| C8 (interval size) formalized | 2026-05-20 | ✅ 2026-04-28 (Sessions 4–5) |
+| **Round D ≥ 5/10 calibration gate** | 2026-05-25 | ✅ **PASSED 2026-04-28 (Session 5)** — 5/10: C1, C2, C4@k=2, C5, C8 |
+| C3, C6, C10, C4 general k formalized (push to 8/10) | 2026-05-25 | Pending — Round C continuation |
+| Methods-paper-grade verdict (Round D) | 2026-05-30 | Pending — Round D |
 | Methods paper draft | 2026-05-25 | Pending — Round F |
 | arXiv submission | 2026-06-05 | Pending — Round F |
 | (Optional) open-problem attempt | 2026-06-15 | Pending — Round E |
@@ -495,7 +497,7 @@ Hitting 5/10 requires one more theorem (~1 session). Hitting 7/10 (methods paper
 
 ---
 
-## 19. Project Directory Layout (actual, post Session 3)
+## 19. Project Directory Layout (actual, post Session 5)
 
 ```
 automath/
@@ -515,7 +517,8 @@ automath/
 │   │       ├── C1_OrderedPairCount.lean          ← ✅ DONE 2026-04-27 (181 lines)
 │   │       ├── C2_OrderingFraction.lean          ← ✅ DONE 2026-04-28 (109 lines)
 │   │       ├── C4_TwoAntichains.lean             ← ✅ DONE 2026-04-28 (112 lines, k=2 only)
-│   │       └── C5_DimensionTwo.lean              ← ✅ DONE 2026-04-28 (151 lines, full incl. dim bridge)
+│   │       ├── C5_DimensionTwo.lean              ← ✅ DONE 2026-04-28 (151 lines, full incl. dim bridge)
+│   │       └── C8_ExpectedInterval.lean          ← ✅ DONE 2026-04-28 (460 lines) — Sessions 4–5
 │   ├── .lake/                                    ← gitignored: build artifacts + Mathlib mirror
 │   └── .github/                                  ← workflow templates from math-lax
 ├── experiments/
@@ -523,7 +526,8 @@ automath/
 │   ├── exp01_c2/notes.md                         ← Session 2 — C2
 │   ├── exp02_c5/notes.md                         ← Session 2 — C5 counting form
 │   ├── exp03_c5_bridge/notes.md                  ← Session 3 — C5 dim bridge
-│   └── exp04_c4_k2/notes.md                      ← Session 3 — C4 at k=2
+│   ├── exp04_c4_k2/notes.md                      ← Session 3 — C4 at k=2
+│   └── exp05_c8/notes.md                         ← Sessions 4–5 — C8
 ├── papers/
 │   └── novelty_check.md                          ← Session 2 — done
 └── notebooks/                                    ← Python scratch for enumeration / sanity checks

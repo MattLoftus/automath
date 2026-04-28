@@ -299,40 +299,162 @@ lemma sum_perm_pair_factor3 (i j k : Fin N) :
                          (fun y : Perm (Fin N) => if y i < y k ∧ y k < y j then (1 : ℕ) else 0)).symm
   rw [stepB, sum_indicator_eq_permLt3Count]
 
-/-- Distinct ordered triple count: `#{(i, j, k) : Fin N × Fin N × Fin N | all distinct} = N(N-1)(N-2)`.
+/-- For fixed distinct `i, j ∈ Fin N`, the count of `k ∈ Fin N` with `i ≠ k ∧ j ≠ k` is `N - 2`. -/
+lemma card_complement_pair (i j : Fin N) (hij : i ≠ j) :
+    ((Finset.univ : Finset (Fin N)).filter (fun k => i ≠ k ∧ j ≠ k)).card = N - 2 := by
+  classical
+  have heq : (Finset.univ : Finset (Fin N)).filter (fun k => i ≠ k ∧ j ≠ k)
+           = ((Finset.univ : Finset (Fin N)).erase i).erase j := by
+    ext k
+    simp only [Finset.mem_filter, Finset.mem_erase, Finset.mem_univ, true_and, and_true]
+    constructor
+    · rintro ⟨h1, h2⟩; exact ⟨Ne.symm h2, Ne.symm h1⟩
+    · rintro ⟨h1, h2⟩; exact ⟨Ne.symm h2, Ne.symm h1⟩
+  rw [heq, Finset.card_erase_of_mem, Finset.card_erase_of_mem (Finset.mem_univ _),
+      Finset.card_univ, Fintype.card_fin]
+  · omega
+  · rw [Finset.mem_erase]; exact ⟨hij.symm, Finset.mem_univ _⟩
 
-**TODO (Session 5):** the proof below is a structural sketch with `sorry`. The mathematical
-content is just "N choices for i, then N-1 for j, then N-2 for k"; the Lean orchestration
-(nested `Finset.sum_filter` rewrites and erase-card lemmas) hits HO-unification issues
-that need a cleaner approach (likely via `Fintype.card` on a product type with `Finset.filter`). -/
+/-- For each `i ∈ Fin N`, the count of `j ∈ Fin N` with `i ≠ j` is `N - 1`. -/
+lemma card_complement_singleton (i : Fin N) :
+    ((Finset.univ : Finset (Fin N)).filter (fun j => i ≠ j)).card = N - 1 := by
+  classical
+  have heq : (Finset.univ : Finset (Fin N)).filter (fun j => i ≠ j)
+           = (Finset.univ : Finset (Fin N)).erase i := by
+    ext j
+    simp only [Finset.mem_filter, Finset.mem_erase, Finset.mem_univ, true_and, and_true]
+    exact ⟨fun h => Ne.symm h, fun h => Ne.symm h⟩
+  rw [heq, Finset.card_erase_of_mem (Finset.mem_univ _), Finset.card_univ, Fintype.card_fin]
+
+/-- Distinct ordered triple count: `#{(i, j, k) : Fin N × Fin N × Fin N | all distinct} = N(N-1)(N-2)`. -/
 lemma card_distinct_triples :
     (∑ i : Fin N, ∑ j : Fin N, ∑ k : Fin N,
       (if i ≠ j ∧ i ≠ k ∧ j ≠ k then (1 : ℕ) else 0)) = N * (N - 1) * (N - 2) := by
-  sorry
+  classical
+  -- Inner k-sum: when (i, j) distinct, count k with i ≠ k ∧ j ≠ k = N - 2; otherwise 0.
+  have h_k : ∀ i j : Fin N,
+      (∑ k : Fin N, (if i ≠ j ∧ i ≠ k ∧ j ≠ k then (1 : ℕ) else 0))
+      = (if i ≠ j then (N - 2 : ℕ) else 0) := by
+    intros i j
+    rw [← Finset.sum_filter, Finset.sum_const, smul_eq_mul, mul_one]
+    by_cases hij : i ≠ j
+    · rw [if_pos hij]
+      have heq : (Finset.univ : Finset (Fin N)).filter (fun k => i ≠ j ∧ i ≠ k ∧ j ≠ k)
+               = (Finset.univ : Finset (Fin N)).filter (fun k => i ≠ k ∧ j ≠ k) := by
+        ext k
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+        exact ⟨fun ⟨_, h2, h3⟩ => ⟨h2, h3⟩, fun ⟨h1, h2⟩ => ⟨hij, h1, h2⟩⟩
+      rw [heq]
+      exact card_complement_pair i j hij
+    · rw [if_neg hij]
+      have : (Finset.univ : Finset (Fin N)).filter (fun k => i ≠ j ∧ i ≠ k ∧ j ≠ k) = ∅ := by
+        ext k; simp [hij]
+      rw [this, Finset.card_empty]
+  rw [Finset.sum_congr rfl (fun i _ => Finset.sum_congr rfl (fun j _ => h_k i j))]
+  -- Goal: ∑_i ∑_j (if i ≠ j then (N - 2) else 0) = N(N-1)(N-2).
+  have h_j : ∀ i : Fin N,
+      (∑ j : Fin N, (if i ≠ j then (N - 2 : ℕ) else 0))
+      = (N - 1) * (N - 2) := by
+    intro i
+    rw [← Finset.sum_filter, Finset.sum_const, smul_eq_mul]
+    rw [card_complement_singleton i]
+  rw [Finset.sum_congr rfl (fun i _ => h_j i)]
+  rw [Finset.sum_const, smul_eq_mul, Finset.card_univ, Fintype.card_fin]
+  ring
+
+/-- Multi-Fubini swap: a 4-deep nested `(σ, τ)` then triple-`(i, j, k)` sum
+can be reordered to triple-`(i, j, k)` then `(σ, τ)`. -/
+lemma fubini_swap (f : Perm (Fin N) × Perm (Fin N) → Fin N → Fin N → Fin N → ℕ) :
+    (∑ p : Perm (Fin N) × Perm (Fin N), ∑ i : Fin N, ∑ j : Fin N, ∑ k : Fin N, f p i j k)
+    = ∑ i : Fin N, ∑ j : Fin N, ∑ k : Fin N, ∑ p : Perm (Fin N) × Perm (Fin N), f p i j k := by
+  rw [Finset.sum_comm]
+  refine Finset.sum_congr rfl fun i _ => ?_
+  rw [Finset.sum_comm]
+  refine Finset.sum_congr rfl fun j _ => ?_
+  rw [Finset.sum_comm]
+
+/-- For each (i, j, k), the per-triple `(σ, τ)`-sum of the full indicator factors as
+`⟦dist⟧ · permLt3Count²`. -/
+lemma sum_perm_pair_full (i j k : Fin N) :
+    (∑ p : Perm (Fin N) × Perm (Fin N),
+      (if i ≠ j ∧ i ≠ k ∧ j ≠ k ∧
+          p.1 i < p.1 k ∧ p.1 k < p.1 j ∧
+          p.2 i < p.2 k ∧ p.2 k < p.2 j then (1 : ℕ) else 0))
+    = (if i ≠ j ∧ i ≠ k ∧ j ≠ k then (1 : ℕ) else 0) * (permLt3Count i j k * permLt3Count i j k) := by
+  classical
+  by_cases h : i ≠ j ∧ i ≠ k ∧ j ≠ k
+  · simp only [if_pos h, one_mul]
+    -- When distinctness holds, the full indicator simplifies to just the chain conditions.
+    have heq : (∑ p : Perm (Fin N) × Perm (Fin N),
+                (if i ≠ j ∧ i ≠ k ∧ j ≠ k ∧
+                    p.1 i < p.1 k ∧ p.1 k < p.1 j ∧
+                    p.2 i < p.2 k ∧ p.2 k < p.2 j then (1 : ℕ) else 0))
+              = (∑ p : Perm (Fin N) × Perm (Fin N),
+                (if p.1 i < p.1 k ∧ p.1 k < p.1 j ∧
+                    p.2 i < p.2 k ∧ p.2 k < p.2 j then (1 : ℕ) else 0)) := by
+      refine Finset.sum_congr rfl fun p _ => ?_
+      simp [h]
+    rw [heq]
+    exact sum_perm_pair_factor3 i j k
+  · simp only [if_neg h, zero_mul]
+    apply Finset.sum_eq_zero
+    intros p _
+    have h_neg : ¬ (i ≠ j ∧ i ≠ k ∧ j ≠ k ∧
+                    p.1 i < p.1 k ∧ p.1 k < p.1 j ∧
+                    p.2 i < p.2 k ∧ p.2 k < p.2 j) := by
+      rintro ⟨h1, h2, h3, _⟩
+      exact h ⟨h1, h2, h3⟩
+    rw [if_neg h_neg]
+
+/-- Per-triple identity: `36 · ⟦dist⟧ · permLt3Count² = ⟦dist⟧ · (N!)²`. -/
+lemma triple_combined_identity (i j k : Fin N) :
+    36 * ((if i ≠ j ∧ i ≠ k ∧ j ≠ k then (1 : ℕ) else 0) *
+          (permLt3Count i j k * permLt3Count i j k))
+    = (if i ≠ j ∧ i ≠ k ∧ j ≠ k then (1 : ℕ) else 0) * (N.factorial)^2 := by
+  by_cases h : i ≠ j ∧ i ≠ k ∧ j ≠ k
+  · simp only [if_pos h, one_mul]
+    have h6 : 6 * permLt3Count i j k = N.factorial :=
+      six_mul_permLt3Count i j k h.1 h.2.1 h.2.2
+    have : (6 * permLt3Count i j k) * (6 * permLt3Count i j k) = N.factorial * N.factorial := by
+      rw [h6]
+    nlinarith [this]
+  · simp only [if_neg h, zero_mul, mul_zero]
 
 /-- **Main theorem: C8 (counting form).**
 For all `N`,
   `36 · ∑_{(σ, τ)} totalIntervalCount σ τ = N(N-1)(N-2) · (N!)²`,
-equivalently `E[|interior| | i ≺ j] = (N-2)/9`.
-
-**TODO (Session 5):** orchestrate the proof using the sub-lemmas above. The mathematical
-content is fully captured by the sub-lemmas (`six_mul_permLt3Count`, `sum_perm_pair_factor3`,
-`card_distinct_triples`); only the Fubini swap + arithmetic combination remains. Sketch:
-
-```
-36 · ∑_{(σ,τ)} totalIntervalCount(σ,τ)
-  = 36 · ∑_{i,j,k} ⟦dist⟧ · ∑_{(σ,τ)} ⟦σ-chain ∧ τ-chain⟧   (Fubini, factor ⟦dist⟧)
-  = 36 · ∑_{i,j,k} ⟦dist⟧ · permLt3Count²                    (sum_perm_pair_factor3)
-  = ∑_{i,j,k} ⟦dist⟧ · 36 · permLt3Count²
-  = ∑_{i,j,k} ⟦dist⟧ · (6·permLt3Count)²
-  = ∑_{i,j,k} ⟦dist⟧ · (N!)²                                 (six_mul_permLt3Count, when dist)
-  = (N!)² · ∑_{i,j,k} ⟦dist⟧
-  = (N!)² · N(N-1)(N-2)                                      (card_distinct_triples)
-```
--/
+equivalently `E[|interior| | i ≺ j] = (N-2)/9`. -/
 theorem EIntervalSize_counting (N : ℕ) :
     36 * ∑ p : Perm (Fin N) × Perm (Fin N), totalIntervalCount p.1 p.2
     = N * (N - 1) * (N - 2) * (N.factorial)^2 := by
-  sorry
+  classical
+  unfold totalIntervalCount
+  -- Step 1: multi-Fubini to swap (σ, τ) sum past (i, j, k) sums.
+  rw [fubini_swap]
+  -- Step 2: For each (i, j, k), apply sum_perm_pair_full.
+  rw [Finset.sum_congr rfl (fun i _ => Finset.sum_congr rfl (fun j _ =>
+      Finset.sum_congr rfl (fun k _ => sum_perm_pair_full i j k)))]
+  -- Goal: 36 * ∑_i ∑_j ∑_k (⟦dist⟧ · permLt3Count²) = N(N-1)(N-2) · (N!)²
+  -- Step 3: distribute 36 inside, apply triple_combined_identity.
+  rw [Finset.mul_sum]
+  rw [Finset.sum_congr rfl (fun i _ => by rw [Finset.mul_sum])]
+  rw [Finset.sum_congr rfl (fun i _ => Finset.sum_congr rfl
+      (fun j _ => by rw [Finset.mul_sum]))]
+  rw [Finset.sum_congr rfl (fun i _ => Finset.sum_congr rfl
+      (fun j _ => Finset.sum_congr rfl (fun k _ => triple_combined_identity i j k)))]
+  -- Goal: ∑_i ∑_j ∑_k (⟦dist⟧ · (N!)²) = N(N-1)(N-2) · (N!)²
+  -- Step 4: factor (N!)² out and apply card_distinct_triples.
+  have hfactor : ∀ i j : Fin N,
+      (∑ k : Fin N, ((if i ≠ j ∧ i ≠ k ∧ j ≠ k then (1 : ℕ) else 0) * (N.factorial)^2))
+      = (∑ k : Fin N, (if i ≠ j ∧ i ≠ k ∧ j ≠ k then (1 : ℕ) else 0)) * (N.factorial)^2 := by
+    intros i j
+    rw [Finset.sum_mul]
+  rw [Finset.sum_congr rfl (fun i _ => Finset.sum_congr rfl (fun j _ => hfactor i j))]
+  have hfactor2 : ∀ i : Fin N,
+      (∑ j : Fin N, (∑ k : Fin N, (if i ≠ j ∧ i ≠ k ∧ j ≠ k then (1 : ℕ) else 0)) * (N.factorial)^2)
+      = (∑ j : Fin N, ∑ k : Fin N, (if i ≠ j ∧ i ≠ k ∧ j ≠ k then (1 : ℕ) else 0)) * (N.factorial)^2 := by
+    intro i; rw [Finset.sum_mul]
+  rw [Finset.sum_congr rfl (fun i _ => hfactor2 i)]
+  rw [← Finset.sum_mul, card_distinct_triples]
 
 end Automath.QGPaperG.C8
