@@ -3,7 +3,7 @@
 **Project:** Automated Math Discovery (LLM-guided conjecture + Lean 4 formalization)
 **Dir:** `~/workspace/automath/`
 **Master playbook:** `~/workspace/MASTER_PLAYBOOK.md`
-**Status:** ROUND C IN PROGRESS (Sessions 1–3, 2026-04-27 → 2026-04-28). 4 of 10 calibration targets formalized (C1, C2, C4@k=2, C5 — including the C5 dim bridge proven this session). Aggregate per-step verification rate across 5 theorems: 17 / 27 ≈ 63%. Round D gate is ≥ 5/10 — one more theorem clears it.
+**Status:** ROUND C IN PROGRESS (Sessions 1–4, 2026-04-27 → 2026-04-28). 4 of 10 calibration targets formalized (C1, C2, C4@k=2, C5). C8 partial: 6-fold triple-symmetry sub-lemmas done, Fubini main theorem `sorry`'d. Round D gate (≥ 5/10) **not yet cleared** — needs C8 main theorem completed. Aggregate per-step verification rate across sub-lemmas: 23/36 ≈ 64%, stable.
 **Created:** 2026-04-23
 **Owner:** Matt Loftus / Cedar Loop LLC
 
@@ -208,11 +208,11 @@ All taken from `~/workspace/quantum-gravity/papers/exact-combinatorics/`. Matt p
 | C5 | P(poset dim = 2) = 1 − 1/N! | **DONE 2026-04-28 (full proof, including dim bridge)** — counting form `#{σ ≠ τ} + N! = (N!)²` (Round B) + `is2OrderTotallyOrdered ⇔ σ = τ` bridge (Round C). 151 lines total. Hard direction proved via `StrictMono.range_inj` + `Equiv.range_eq_univ` + `mul_inv_eq_one`. |
 | C6 | Var[f] = (2N+5) / (18N(N−1)) | Harder (computation with 2nd moments) |
 | C7 | Tracy-Widom antichain: antichain size fluctuations | Hard (uses BDJ theorem — may hit Mathlib wall) |
-| C8 | P(link) = double sum formula | Moderate |
+| C8 | E[\|interval interior\| \| i ≺ j] = (N-2)/9 (Interval-statistics proposition; original "P(link)" framing replaced with the cleaner expected-interval form) | **PARTIAL 2026-04-28** (Session 4): the 6-fold triple-symmetry sub-lemma `6·permLt3Count = N!` proved (this is the genuine new mathematical content), as is `sum_perm_pair_factor3`. Main theorem `EIntervalSize_counting` and `card_distinct_triples` `sorry`'d — Fubini orchestration deferred to Session 5. 338 lines. |
 | C9 | P(Hasse connected) for N=2-6 (exact values) | Hard for N>2 — depends on Mathlib coverage of Hasse diagrams |
 | C10 | E[maximal chains] exact formula | Moderate |
 
-**Ordered calibration plan:** ✅ C1 (Round A), C2 + C5-counting + C5-easy-bridge (Round B), C5-hard-bridge + C4@k=2 (Round C, Session 3). Next session: C8 (P(link)) and/or C3 (harmonic). Then C6 (Var[f]) and C4 general k. C7 (Tracy-Widom) and C9 (Hasse) likely Mathlib-blocked; defer.
+**Ordered calibration plan:** ✅ C1 (Round A), C2 + C5-counting + C5-easy-bridge (Round B), C5-hard-bridge + C4@k=2 (Round C, Session 3), C8 sub-lemmas (Round C, Session 4). Next session: finish C8 main theorem, then C3 (harmonic) or C6 (variance). Then C4 general k. C7 (Tracy-Widom) and C9 (Hasse) likely Mathlib-blocked; defer.
 
 ---
 

@@ -5,3 +5,4 @@ import Automath.QGPaperG.C1_OrderedPairCount
 import Automath.QGPaperG.C2_OrderingFraction
 import Automath.QGPaperG.C5_DimensionTwo
 import Automath.QGPaperG.C4_TwoAntichains
+import Automath.QGPaperG.C8_ExpectedInterval
