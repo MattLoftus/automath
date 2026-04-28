@@ -14,7 +14,7 @@ Eight tasks ran end-to-end:
 4. Initialized Lake project at `~/workspace/automath/lean/` with `lake init Automath math-lax.toml`. Template auto-pulled Mathlib v4.30.0-rc2 and ran `lake exe cache get` — downloaded 8,297 prebuilt `.olean` files (~5 minutes).
 5. Verified: `HelloMath.lean` compiles via `lake env lean HelloMath.lean`. `lake build` clean.
 6. Surveyed `Mathlib/Combinatorics/` subdirectory structure and the relevant primitives for C1.
-7. Hand-formalized C1 in counting form. ~110 lines of Lean. 7 build iterations to a fully-typechecked file.
+7. Hand-formalized C1 in counting form. 181 lines of Lean (including ~25-line docstring). 7 build iterations to a fully-typechecked file.
 8. Initialized git, pushed public to `MattLoftus/automath`.
 
 ## C1 — what was actually proved

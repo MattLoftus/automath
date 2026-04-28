@@ -201,7 +201,7 @@ All taken from `~/workspace/quantum-gravity/papers/exact-combinatorics/`. Matt p
 
 | # | Theorem | Difficulty |
 |---|---------|------------|
-| C1 | E[# ordered comparable pairs (i, j)] = N(N−1)/4 for random 2-orders on N elements | **DONE 2026-04-27** — counting form, ~110 lines, 7 build iterations. (Original PLAYBOOK called this "link count" — corrected; "link" in the QG paper means a covering relation w/o intermediates, which is C8.) |
+| C1 | E[# ordered comparable pairs (i, j)] = N(N−1)/4 for random 2-orders on N elements | **DONE 2026-04-27** — counting form, ~180 lines, 7 build iterations. (Original PLAYBOOK called this "link count" — corrected; "link" in the QG paper means a covering relation w/o intermediates, which is C8.) |
 | C2 | E[ordering fraction f] = 1/2 | Easy (symmetry) |
 | C3 | E[maximal elements] = H_N (harmonic number) | Moderate (probabilistic proof via record values in random permutations) |
 | C4 | E[k-antichains] = C(N,k) / k! | Moderate (combinatorial) |
@@ -264,7 +264,7 @@ Minimal portfolio reuse — this is a net-new stack:
 - elan + Lean 4.30.0-rc2 installed at `~/.elan/`.
 - Lake project at `automath/lean/` with Mathlib v4.30.0-rc2 dependency, `~8300` `.olean` files cached via `lake exe cache get`.
 - HelloMath.lean (`1+1=2`) compiled cleanly.
-- C1 (counting form): `4 · ∑_{(σ,τ)} orderedPairCount = N(N-1)·(N!)²` — proved in Lean, ~110 lines, 7 build iterations to passing typecheck.
+- C1 (counting form): `4 · ∑_{(σ,τ)} orderedPairCount = N(N-1)·(N!)²` — proved in Lean, ~180 lines, 7 build iterations to passing typecheck.
 - Per-step auto-verification rate (this session): roughly **4 of 7 lemmas first-try pass** (~57%); main theorem required 4 iterations.
 
 ### Round B — Multi-theorem expansion (next 1–2 sessions)
@@ -437,7 +437,7 @@ Achievements:
 5. Compiled HelloMath.lean.
 6. Surveyed `Mathlib/Combinatorics/` (Additive, Derangements, Digraph, Enumerative, **Extremal**, Graph, Hall, Matroid, Optimization, Quiver, SetFamily, SimpleGraph, Tiling, Young).
 7. Identified C1's mathematical primitives: `Equiv.Perm`, `Fintype.card_perm`, `Finset.offDiag`, `Finset.card_bij'`, `Equiv.swap`, `Fintype.sum_prod_type`, `Fintype.sum_mul_sum`.
-8. Hand-formalized C1 (counting form): `4 · ∑_{(σ,τ)} orderedPairCount = N(N-1) · (N!)²`. ~110 lines, 7 build iterations.
+8. Hand-formalized C1 (counting form): `4 · ∑_{(σ,τ)} orderedPairCount = N(N-1) · (N!)²`. ~180 lines, 7 build iterations.
 9. Logged everything to `experiments/exp00_lean_setup/notes.md`.
 10. Pushed public to GitHub: `MattLoftus/automath`.
 
