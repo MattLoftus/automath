@@ -3,7 +3,7 @@
 **Project:** Automated Math Discovery (LLM-guided conjecture + Lean 4 formalization)
 **Dir:** `~/workspace/automath/`
 **Master playbook:** `~/workspace/MASTER_PLAYBOOK.md`
-**Status:** ROUNDS A + B COMPLETE (Sessions 1–2, 2026-04-27 / 2026-04-28). C1 + C2 + C5 formalized in counting form, all typechecking. Mandatory novelty check passed (papers/novelty_check.md). Aggregate per-step verification rate: 11 / 18 ≈ 61%, well above H2's > 30% threshold. Ready for Round C (harder calibration targets: C3, C4, C6, C8, C10).
+**Status:** ROUND C IN PROGRESS (Sessions 1–3, 2026-04-27 → 2026-04-28). 4 of 10 calibration targets formalized (C1, C2, C4@k=2, C5 — including the C5 dim bridge proven this session). Aggregate per-step verification rate across 5 theorems: 17 / 27 ≈ 63%. Round D gate is ≥ 5/10 — one more theorem clears it.
 **Created:** 2026-04-23
 **Owner:** Matt Loftus / Cedar Loop LLC
 
@@ -203,16 +203,16 @@ All taken from `~/workspace/quantum-gravity/papers/exact-combinatorics/`. Matt p
 |---|---------|------------|
 | C1 | E[# ordered comparable pairs (i, j)] = N(N−1)/4 for random 2-orders on N elements | **DONE 2026-04-27** — counting form, 181 lines, 7 build iterations, 4/7 sublemmas first-try. (Original PLAYBOOK called this "link count" — corrected; "link" in the QG paper means a covering relation w/o intermediates, which is C8.) |
 | C2 | E[ordering fraction f] = 1/2 | **DONE 2026-04-28** — counting form (`2 · ∑ comparablePairCount = N(N-1)·(N!)²`), 109 lines, 2 iterations, 5/6 first-try. Reduces to C1 via `comparablePairCount = 2 · orderedPairCount`. |
-| C3 | E[maximal elements] = H_N (harmonic number) | Moderate (probabilistic proof via record values in random permutations) |
-| C4 | E[k-antichains] = C(N,k) / k! | Moderate (combinatorial) |
-| C5 | P(poset dim = 2) = 1 − 1/N! | **DONE 2026-04-28 (counting form)** — `#{σ ≠ τ} + N! = (N!)²`, 103 lines, 2 iterations, 2/5 first-try. **Bridge `is2OrderTotallyOrdered ⇔ σ = τ` deferred** (requires "monotone perm of Fin N = id" which is not a one-line Mathlib lookup). Easy direction `σ = τ → is total order` is proved as `diag_is_total_order`. |
+| C3 | E[maximal elements] = H_N (harmonic number) | Moderate (probabilistic proof via record values in random permutations). Requires ℚ machinery or careful ℕ-only arithmetic with `N!/(N-i)`. Round D target. |
+| C4 | E[k-antichains] = C(N,k) / k! | **DONE k=2 case 2026-04-28** — counting form `2 · ∑ numOrderedIncomparable = N(N-1)·(N!)²`, 112 lines, 3 iterations, 3/5 first-try. Reduces to C2 via `inc + comp = N(N-1)`. **General k case deferred** — requires partition over k-subsets and per-subset 1/k! probability. |
+| C5 | P(poset dim = 2) = 1 − 1/N! | **DONE 2026-04-28 (full proof, including dim bridge)** — counting form `#{σ ≠ τ} + N! = (N!)²` (Round B) + `is2OrderTotallyOrdered ⇔ σ = τ` bridge (Round C). 151 lines total. Hard direction proved via `StrictMono.range_inj` + `Equiv.range_eq_univ` + `mul_inv_eq_one`. |
 | C6 | Var[f] = (2N+5) / (18N(N−1)) | Harder (computation with 2nd moments) |
 | C7 | Tracy-Widom antichain: antichain size fluctuations | Hard (uses BDJ theorem — may hit Mathlib wall) |
 | C8 | P(link) = double sum formula | Moderate |
 | C9 | P(Hasse connected) for N=2-6 (exact values) | Hard for N>2 — depends on Mathlib coverage of Hasse diagrams |
 | C10 | E[maximal chains] exact formula | Moderate |
 
-**Ordered calibration plan:** ✅ C1, C2, C5 done (Round A + B). Round C order: C3 (record-value argument) → C4 (Stirling-ish) → C6 (variance) → C8 (link/covering). C7 (Tracy-Widom) and C9 (Hasse) likely Mathlib-blocked; defer. C10 last.
+**Ordered calibration plan:** ✅ C1 (Round A), C2 + C5-counting + C5-easy-bridge (Round B), C5-hard-bridge + C4@k=2 (Round C, Session 3). Next session: C8 (P(link)) and/or C3 (harmonic). Then C6 (Var[f]) and C4 general k. C7 (Tracy-Widom) and C9 (Hasse) likely Mathlib-blocked; defer.
 
 ---
 
@@ -319,7 +319,8 @@ Minimal portfolio reuse — this is a net-new stack:
 | **Round A — Hand formalization** | C1 hand-proven in Lean | Proceed | Pause project; pivot domain | ✅ **PASSED 2026-04-27** (Session 1) |
 | **Round B — Multi-theorem** | C2 + C5 formalize within ~1 session each | Proceed | Reassess Mathlib coverage | ✅ **PASSED 2026-04-28** (Session 2) — both compiled in 2 iterations each |
 | **Round B — Novelty check** | No close prior art on Lean+LLM pipeline for extremal combinatorics | Proceed | Pivot scope (e.g., Stirling identities) | ✅ **PASSED 2026-04-28** — `papers/novelty_check.md` |
-| **Round D — Calibration** | ≥ 5 of 10 Paper G theorems pass | Methods paper + maybe stretch | Limitations paper | 3 of 10 done (C1, C2, C5); 7 to go |
+| **Round C — C5 dim bridge** | `is2OrderTotallyOrdered ⇔ σ = τ` proven, completing C5 | Proceed | Defer / accept partial C5 | ✅ **PASSED 2026-04-28** (Session 3, 1 fix) |
+| **Round D — Calibration** | ≥ 5 of 10 Paper G theorems pass | Methods paper + maybe stretch | Limitations paper | 4 of 10 done (C1, C2, C4@k=2, C5); 6 to go (1 more clears the gate) |
 | **Round F — Cold-read** | Methods paper scores ≥ 6.5 | Submit | Revise | Pending |
 
 ---
@@ -385,9 +386,10 @@ Minimal portfolio reuse — this is a net-new stack:
 | Hand-formalization of C1 | 2026-05-02 | ✅ 2026-04-27 (Session 1, ~7 iterations) |
 | Novelty check | 2026-05-05 | ✅ 2026-04-28 (Session 2) — `papers/novelty_check.md` |
 | C2 + C5 formalized | 2026-05-12 | ✅ 2026-04-28 (Session 2, 2 iterations each) |
-| C3, C4, C6, C8, C10 formalized | 2026-05-15 | Pending — Round C |
-| C5 dim bridge (`is2OrderTotallyOrdered ⇔ σ = τ`) | 2026-05-15 | Pending — Round C |
-| Full calibration verdict | 2026-05-20 | Pending — Round D |
+| C5 dim bridge (`is2OrderTotallyOrdered ⇔ σ = τ`) | 2026-05-15 | ✅ 2026-04-28 (Session 3) |
+| C4@k=2 formalized | 2026-05-15 | ✅ 2026-04-28 (Session 3) |
+| C3, C6, C8, C10 + C4 general k formalized | 2026-05-20 | Pending — Round C continuation |
+| Full calibration verdict | 2026-05-25 | Pending — Round D |
 | Methods paper draft | 2026-05-25 | Pending — Round F |
 | arXiv submission | 2026-06-05 | Pending — Round F |
 | (Optional) open-problem attempt | 2026-06-15 | Pending — Round E |
@@ -464,19 +466,36 @@ Lean-specific gotchas hit (added to running list):
 - **`rw` with `← lemma_name` rewrites every occurrence** — including in places you didn't intend. Substitute on a helper hypothesis first, or use `nth_rewrite n`.
 - **Mathlib deprecation warnings** (e.g., `Finset.filter_card_add_filter_neg_card_eq_card` → `Finset.card_filter_add_card_filter_not`) are easy to miss in long output; scan warnings even on success.
 
-### Session 3 — Round C start (next)
+### Session 3 — 2026-04-28 ✅ C5 dim bridge + C4@k=2
 
-Plan:
-1. **Deferred C5 bridge:** prove `is2OrderTotallyOrdered σ τ → σ = τ` via `Finset.orderEmbOfFin_unique` or a direct induction on `Fin N`.
-2. **C3 (`E[maximal] = H_N`):** the "expected number of records in a uniform random permutation" identity. Likely requires building a small "record-value" library on top of `Equiv.Perm` since Mathlib doesn't have one ready.
-3. **C4 (`E[k-antichains] = C(N, k) / k!`):** Stirling-style identity. First check Mathlib's `Combinatorics/Enumerative/` for analog.
-4. **Log per-theorem stats** to `experiments/exp03_c5_bridge/`, `exp04_c3/`, `exp05_c4/`.
+Achievements:
+1. **C5 dim bridge proved.** The hard direction `is2OrderTotallyOrdered σ τ → σ = τ` was deferred from Round B. Proved via: (a) `σ * τ⁻¹` is strictly monotone under the hypothesis (a < b ⇒ disjunction at `(τ⁻¹ a, τ⁻¹ b)` forces the σ-direction); (b) `StrictMono.range_inj` (`Mathlib/Order/WellFounded.lean`) + `Equiv.range_eq_univ` ⇒ `σ * τ⁻¹ = id` as a function; (c) `Equiv.ext` + `mul_inv_eq_one` ⇒ `σ = τ`. 1 build fix (`Equiv.Perm.apply_inv_self` doesn't exist; needed `show τ (τ.symm x) = x; exact τ.apply_symm_apply x` to convert group inverse to Equiv symm). C5 now FULLY formalized including the dim claim. See `experiments/exp03_c5_bridge/notes.md`.
+2. **C4 at k=2 formalized.** `2 · ∑ numOrderedIncomparablePairs = N(N-1) · (N!)²`. Reduces to C2 via the partition `inc + comp = N(N-1)` per-pair. 112 lines, 3 build iterations, 3/5 first-try. The general k case (E[# k-antichains] = C(N,k)/k!) requires partitioning over k-subsets and is deferred. See `experiments/exp04_c4_k2/notes.md`.
+3. **Aggregate Round A+B+C per-step verification rate: 17 / 27 ≈ 63%.** Stable across rounds.
+4. **Calibration count: 4 of 10 done** (C1, C2, C4@k=2, C5). One more clears the Round D ≥ 5/10 gate.
 
-Round C is the test of "do harder identities still go through smoothly?" If C3 and C4 take 2+ sessions each, that's the signal that Round D's full calibration won't easily clear ≥ 5/10. Conversely, if Round C clears in 2 sessions, Round D is on track for ≥ 7/10 and methods paper at 7.0–7.5.
+Lean-specific gotchas hit this session:
+
+- **Group inverse `_⁻¹` for `Equiv.Perm` doesn't auto-unfold to `.symm`** when applying lemmas like `Equiv.apply_symm_apply`. Use an explicit `show τ (τ.symm x) = x` to convert before applying.
+- **`StrictMono.range_inj`** (in `Mathlib/Order/WellFounded.lean`) is the right tool for "monotone bijection of finite linear order = id." Compose with `Equiv.range_eq_univ` and `Set.range_id`.
+- **For "sum of f equals constant": don't use `rw [show ∀ p, ... from ...]`** — HO unification fails. Use `Finset.sum_congr rfl h_pointwise` where `h_pointwise : ∀ p ∈ s, f p = c`.
+- **Non-linear goal? Don't reach for `linarith`.** Use `set` bindings to introduce abbreviations, prove an auxiliary `ring`-derived identity to align the abbreviations, then `linarith` over the abbreviated form.
+
+### Session 4 — Round C continuation (next)
+
+Plan, ordered by likely tractability:
+
+1. **C8 (P(link))** — covering relation, no intermediates. From the QG paper master interval formula `P[interior k | gap m] = (m-k-1)/(m(m-1))`, the link case is k=0: `P[link | gap m] = (m-1)/(m(m-1)) = 1/m`. Then `E[# links | i ≺ j] = ∑_m P[gap = m | i ≺ j] · 1/m`. Tractable in ℕ. **Most likely path to 5/10 calibration.**
+2. **C3 (E[maximal] = H_N)** — needs ℚ machinery (or careful ℕ-only via `N!/(N-i)`). The right-to-left max reformulation requires a bijection between `Sym(N) × Sym(N)` and the relabeled `(id, τ ∘ σ⁻¹)` form. Time-box one session.
+3. **C6 (Var[f])** — second moment computation. Reuse C1's `permLtCount` machinery for triple-correlation `Cov(X_{ij}, X_{ik})`. Probably moderate.
+4. **C4 general k** — partition over k-subsets, show 1/k! probability per subset.
+5. **C10 (E[max chain])** — chain combinatorics; not yet sketched.
+
+Hitting 5/10 requires one more theorem (~1 session). Hitting 7/10 (methods paper at 7.0–7.5) requires three more.
 
 ---
 
-## 19. Project Directory Layout (actual, post Session 2)
+## 19. Project Directory Layout (actual, post Session 3)
 
 ```
 automath/
@@ -495,13 +514,16 @@ automath/
 │   │   └── QGPaperG/
 │   │       ├── C1_OrderedPairCount.lean          ← ✅ DONE 2026-04-27 (181 lines)
 │   │       ├── C2_OrderingFraction.lean          ← ✅ DONE 2026-04-28 (109 lines)
-│   │       └── C5_DimensionTwo.lean              ← ✅ DONE 2026-04-28 (103 lines, dim bridge deferred)
+│   │       ├── C4_TwoAntichains.lean             ← ✅ DONE 2026-04-28 (112 lines, k=2 only)
+│   │       └── C5_DimensionTwo.lean              ← ✅ DONE 2026-04-28 (151 lines, full incl. dim bridge)
 │   ├── .lake/                                    ← gitignored: build artifacts + Mathlib mirror
 │   └── .github/                                  ← workflow templates from math-lax
 ├── experiments/
 │   ├── exp00_lean_setup/notes.md                 ← Session 1 log
 │   ├── exp01_c2/notes.md                         ← Session 2 — C2
-│   └── exp02_c5/notes.md                         ← Session 2 — C5
+│   ├── exp02_c5/notes.md                         ← Session 2 — C5 counting form
+│   ├── exp03_c5_bridge/notes.md                  ← Session 3 — C5 dim bridge
+│   └── exp04_c4_k2/notes.md                      ← Session 3 — C4 at k=2
 ├── papers/
 │   └── novelty_check.md                          ← Session 2 — done
 └── notebooks/                                    ← Python scratch for enumeration / sanity checks

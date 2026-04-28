@@ -51,10 +51,58 @@ lemma diag_is_total_order (σ τ : Perm (Fin N)) (h : σ = τ) :
   rw [Finset.mem_offDiag] at hp
   have hne : p.1 ≠ p.2 := hp.2.2
   -- σ injective ⇒ σ p.1 ≠ σ p.2 ⇒ exactly one direction holds.
-  have : σ p.1 ≠ σ p.2 := fun heq => hne (σ.injective heq)
-  rcases lt_or_gt_of_ne this with hlt | hgt
+  have hne' : σ p.1 ≠ σ p.2 := fun heq => hne (σ.injective heq)
+  rcases lt_or_gt_of_ne hne' with hlt | hgt
   · left; exact ⟨hlt, by rw [← h]; exact hlt⟩
   · right; exact ⟨hgt, by rw [← h]; exact hgt⟩
+
+/-- **Bridge (hard direction):** if the 2-order from `(σ, τ)` is totally ordered,
+then `σ = τ`. The argument: `σ ∘ τ⁻¹` is a strict-monotone permutation of `Fin N`,
+hence the identity (any strict-mono function on a well-founded order has a unique
+range; combined with the bijectivity of permutations, σ ∘ τ⁻¹ matches the identity).
+-/
+lemma totallyOrdered_imp_eq (σ τ : Perm (Fin N)) (h : is2OrderTotallyOrdered σ τ) :
+    σ = τ := by
+  -- Reduce to `σ * τ⁻¹ = 1`.
+  suffices hone : σ * τ⁻¹ = 1 from mul_inv_eq_one.mp hone
+  -- Show φ := σ * τ⁻¹ is strictly monotone.
+  set φ : Equiv.Perm (Fin N) := σ * τ⁻¹ with hφ_def
+  have hφ_strict : StrictMono (φ : Fin N → Fin N) := by
+    intro a b hab
+    -- Goal: φ a < φ b, i.e., σ (τ⁻¹ a) < σ (τ⁻¹ b)
+    show σ (τ⁻¹ a) < σ (τ⁻¹ b)
+    -- The pair (τ⁻¹ a, τ⁻¹ b) is in offDiag (since a ≠ b ⇒ τ⁻¹ a ≠ τ⁻¹ b).
+    have h_ne : τ⁻¹ a ≠ τ⁻¹ b := by
+      intro heq
+      exact ne_of_lt hab (τ⁻¹.injective heq)
+    have hp_off : (τ⁻¹ a, τ⁻¹ b) ∈ (Finset.univ : Finset (Fin N)).offDiag := by
+      rw [Finset.mem_offDiag]
+      exact ⟨Finset.mem_univ _, Finset.mem_univ _, h_ne⟩
+    rcases h _ hp_off with ⟨hσ_lt, _⟩ | ⟨_, hτ_gt⟩
+    · exact hσ_lt
+    · -- hτ_gt : τ (τ⁻¹ b) < τ (τ⁻¹ a). But τ (τ⁻¹ a) = a < b = τ (τ⁻¹ b). Contradiction.
+      have h_a : τ (τ⁻¹ a) = a := by
+        show τ (τ.symm a) = a
+        exact τ.apply_symm_apply a
+      have h_b : τ (τ⁻¹ b) = b := by
+        show τ (τ.symm b) = b
+        exact τ.apply_symm_apply b
+      rw [h_a, h_b] at hτ_gt
+      exact absurd hτ_gt (lt_asymm hab)
+  -- A strict-monotone permutation of `Fin N` (well-founded) equals the identity as a function.
+  have hφ_id : (φ : Fin N → Fin N) = id := by
+    apply (StrictMono.range_inj hφ_strict strictMono_id).mp
+    rw [Set.range_id]
+    exact φ.range_eq_univ
+  -- Therefore `φ = 1` as `Equiv.Perm`.
+  apply Equiv.ext
+  intro k
+  exact congrFun hφ_id k
+
+/-- **Full bridge: 2-order is totally ordered ⇔ σ = τ.** -/
+theorem isTotallyOrdered_iff_eq (σ τ : Perm (Fin N)) :
+    is2OrderTotallyOrdered σ τ ↔ σ = τ :=
+  ⟨totallyOrdered_imp_eq σ τ, diag_is_total_order σ τ⟩
 
 /-- The diagonal of `Perm × Perm` has cardinality `N!`. -/
 lemma card_diagonal_perm :
