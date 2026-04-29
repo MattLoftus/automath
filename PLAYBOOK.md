@@ -3,7 +3,7 @@
 **Project:** Automated Math Discovery (LLM-guided conjecture + Lean 4 formalization)
 **Dir:** `~/workspace/automath/`
 **Master playbook:** `~/workspace/MASTER_PLAYBOOK.md`
-**Status:** ROUND D GATE CLEARED (Sessions 1–5, 2026-04-27 → 2026-04-28). **5 of 10 calibration targets formalized** (C1, C2, C4@k=2, C5, C8). The Round D ≥ 5/10 gate is met — methods-paper floor locked at 7.0–7.5 per §12 rubric. Aggregate per-step verification rate: ~63% across 6 theorems and ~30+ sublemmas, consistent across rounds.
+**Status:** ROUND E RESULT COMPLETE (Sessions 1–6, 2026-04-27 → 2026-04-29). **5 of 10 calibration targets formalized** (C1, C2, C4@k=2, C5, C8) + **new exact value E[|Aut|] at N=6 = 349/80** computed and partially formalized. Calibration unlocks methods-paper floor at 7.0–7.5; the Round E result unlocks the **8.0–8.5 ceiling** via a standalone combinatorics paper.
 **Created:** 2026-04-23
 **Owner:** Matt Loftus / Cedar Loop LLC
 
@@ -216,15 +216,12 @@ All taken from `~/workspace/quantum-gravity/papers/exact-combinatorics/`. Matt p
 
 ---
 
-## 7. Open-Problem Targets (Round D stretch)
+## 7. Open-Problem Targets (Round E)
 
-Only attempt if calibration passes:
-- **Exact E[|Aut|] for N=6.** Matt computed N=2-5 (3/2, 13/6, 71/24, 89/24). N=6 is unknown-but-exactly-computable via enumeration + symmetry.
+- ✅ **Exact E[|Aut|] for N=6.** **DONE 2026-04-29 (Session 6, Round E):** the new exact value is **E[|Aut|] = 349/80 = 4.3625**. Verified by direct enumeration in Python (`experiments/exp06_e_aut/compute_e_aut.py`, 21.6 s on Matt's M4 Pro). All N=2..5 values match Loftus's hand computations from QG Paper G. External validation: the `unique-2-order count` matches OEIS A001035 at N=2..5 and is exactly 840 less at N=6 — confirming the known fact that the first dimension-3 posets appear at N=6. **Lean status:** N=2..4 (and possibly N=5) verified by `native_decide`; N=6 stated as `axiom` because `native_decide` was killed at ~10 min CPU. Methods paper will discuss the kernel-vs-external trade-off honestly.
 - **Exact P(Hasse connected) for N=7.** Matt computed N=2-6: 1/2, 1/2, 13/24, 71/120, 461/720. N=7 is tractable with enumeration + careful counting.
 - **Joint distribution of (height, width) at N=6.** Partial result in Matt's paper.
 - **Extremal: what's the maximum E[f] over all distributions on labeled posets of size N?** New question.
-
-Each would be a ~2-3 week add-on post-calibration if time permits.
 
 ---
 
@@ -321,6 +318,7 @@ Minimal portfolio reuse — this is a net-new stack:
 | **Round B — Novelty check** | No close prior art on Lean+LLM pipeline for extremal combinatorics | Proceed | Pivot scope (e.g., Stirling identities) | ✅ **PASSED 2026-04-28** — `papers/novelty_check.md` |
 | **Round C — C5 dim bridge** | `is2OrderTotallyOrdered ⇔ σ = τ` proven, completing C5 | Proceed | Defer / accept partial C5 | ✅ **PASSED 2026-04-28** (Session 3, 1 fix) |
 | **Round D — Calibration** | ≥ 5 of 10 Paper G theorems pass | Methods paper + maybe stretch | Limitations paper | ✅ **PASSED 2026-04-28** (Session 5) — 5 of 10 done (C1, C2, C4@k=2, C5, C8). Methods paper floor locked at 7.0–7.5. |
+| **Round E — Open-problem extension** | New exact value computed + at-least-partially formalized | Combinatorics paper unlocked | Methods paper only | ✅ **COMPLETE 2026-04-29 (Session 6)** — E[\|Aut\|] at N=6 = 349/80, Python-verified, Lean N=2..4 native_decide |
 | **Round F — Cold-read** | Methods paper scores ≥ 6.5 | Submit | Revise | Pending |
 
 ---
