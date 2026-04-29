@@ -1,0 +1,12 @@
+{
+  "N": 7,
+  "sum_aut": 122739120,
+  "n_pairs": 25401600,
+  "E_aut_numerator": 3479,
+  "E_aut_denominator": 720,
+  "n_unique_2orders": 5844259,
+  "A001035_at_N": 6129859,
+  "n_dim3plus_posets": 285600,
+  "phase1_time_sec": 82.16749000549316,
+  "phase2_time_sec": 468.78304719924927
+}

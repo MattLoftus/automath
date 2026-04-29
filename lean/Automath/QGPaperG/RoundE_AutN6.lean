@@ -85,20 +85,36 @@ theorem autSum_four : autSum 4 = 1704 := by
 theorem autSum_five : autSum 5 = 53400 := by
   native_decide
 
-/-- **Round E result: ∑ |Aut| at N = 6 equals 2,261,520, equivalent to E[|Aut|] = 349/80.**
+/-- **Round E result (N = 6): ∑ |Aut| at N = 6 equals 2,261,520, equivalent to E[|Aut|] = 349/80.**
 
 This extends QG Paper G's hand calculations:
   N=2: 3/2,  N=3: 13/6,  N=4: 71/24,  N=5: 89/24  →  **N=6: 349/80** (new).
 
 The value `2261520` was verified by direct enumeration in Python (see
 `experiments/exp06_e_aut/compute_e_aut.py`), with full reproducibility:
-the script also re-derives N=2..5 values matching `autSum_two`, `autSum_three`,
-and Loftus's hand-computed N=4, N=5 values from the QG paper.
+the script also re-derives N=2..5 values matching `autSum_two`..`autSum_five`,
+and Loftus's hand-computed values from QG Paper G.
 
 `native_decide` was attempted but is too slow at N=6 due to the 518,400 × 720 × 36
 ≈ 1.3·10¹⁰ pair-condition checks through `Equiv.Perm (Fin 6)`. Stated as `axiom`
 pending either: (a) an efficient native encoding via `Fin 720 → Fin 6 → Fin 6`
 arrays, or (b) a structural proof. -/
 axiom autSum_six : autSum 6 = 2261520
+
+/-- **Round E result (N = 7): ∑ |Aut| at N = 7 equals 122,739,120, equivalent to E[|Aut|] = 3479/720.**
+
+The full sequence for N=2..7:
+  N=2: 3/2,  N=3: 13/6,  N=4: 71/24,  N=5: 89/24,  N=6: 349/80,  **N=7: 3479/720** (new).
+
+Verified by parallelized enumeration in Python (`experiments/exp06_e_aut/compute_n7_full.py`).
+~9.2 minutes total: ~82s for Phase 1 (enumerating 25.4M pairs into 5.84M unique 2-order shapes),
+then ~469s for Phase 2 (counting automorphisms with 14 worker processes).
+
+External cross-check: the unique-2-order count (5,844,259) plus the dimension-3+ poset count
+(285,600) sums to 6,129,859 = OEIS A001035(7) = number of labeled posets on 7 elements.
+
+Stated as `axiom` (not even `native_decide`-attempted; would require 25.4M × 5040 × 49 ≈
+6·10¹² operations — orders of magnitude beyond the N=6 timeout). -/
+axiom autSum_seven : autSum 7 = 122739120
 
 end Automath.QGPaperG.RoundE

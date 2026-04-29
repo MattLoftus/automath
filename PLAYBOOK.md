@@ -3,7 +3,7 @@
 **Project:** Automated Math Discovery (LLM-guided conjecture + Lean 4 formalization)
 **Dir:** `~/workspace/automath/`
 **Master playbook:** `~/workspace/MASTER_PLAYBOOK.md`
-**Status:** ROUND E RESULT COMPLETE (Sessions 1–6, 2026-04-27 → 2026-04-29). **5 of 10 calibration targets formalized** (C1, C2, C4@k=2, C5, C8) + **new exact value E[|Aut|] at N=6 = 349/80** computed and partially formalized. Calibration unlocks methods-paper floor at 7.0–7.5; the Round E result unlocks the **8.0–8.5 ceiling** via a standalone combinatorics paper.
+**Status:** ROUND E COMPLETE (Sessions 1–6, 2026-04-27 → 2026-04-29). **5 of 10 calibration targets formalized** (C1, C2, C4@k=2, C5, C8) + **two new exact values E[|Aut|](6) = 349/80 and E[|Aut|](7) = 3479/720** computed (Python) and partially formalized (Lean N=2..5 native_decide; N=6, N=7 axiom). **Honest score estimate: 7.0–7.5** — the new values are characterization-class extensions per RESEARCH_LEARNINGS lesson 97; combined with the methods paper they're a publishable contribution but not transformative. (The original 8.0–8.5 ceiling estimate was optimistic.)
 **Created:** 2026-04-23
 **Owner:** Matt Loftus / Cedar Loop LLC
 
@@ -218,7 +218,7 @@ All taken from `~/workspace/quantum-gravity/papers/exact-combinatorics/`. Matt p
 
 ## 7. Open-Problem Targets (Round E)
 
-- ✅ **Exact E[|Aut|] for N=6.** **DONE 2026-04-29 (Session 6, Round E):** the new exact value is **E[|Aut|] = 349/80 = 4.3625**. Verified by direct enumeration in Python (`experiments/exp06_e_aut/compute_e_aut.py`, 21.6 s on Matt's M4 Pro). All N=2..5 values match Loftus's hand computations from QG Paper G. External validation: the `unique-2-order count` matches OEIS A001035 at N=2..5 and is exactly 840 less at N=6 — confirming the known fact that the first dimension-3 posets appear at N=6. **Lean status:** N=2..4 (and possibly N=5) verified by `native_decide`; N=6 stated as `axiom` because `native_decide` was killed at ~10 min CPU. Methods paper will discuss the kernel-vs-external trade-off honestly.
+- ✅ **Exact E[|Aut|] for N=6 AND N=7.** **DONE 2026-04-29 (Session 6, Round E):** two new exact values, **E[|Aut|](6) = 349/80 = 4.3625** and **E[|Aut|](7) = 3479/720 ≈ 4.832**. Verified by Python enumeration: N=6 in 21.6s single-threaded, N=7 in 552s with 14-core multiprocessing. All N=2..5 values match Loftus's hand computations from QG Paper G. External validation: the `unique-2-order count` matches OEIS A001035 at N=2..5; at N=6 the difference is exactly 840 (the dim-3+ count), at N=7 the difference is 285,600 — both consistent with the known fact that the first dimension-3 posets appear at N=6. **Lean status:** N=2..5 verified by `native_decide`; N=6 and N=7 stated as `axiom` (native_decide too slow for the 10⁹–10¹² operation count). **Sequence analysis:** ∑|Aut|/N! = {3, 13, 71, 445, 3141, 24353}. No clean recurrence detected; ratios grow ~linearly (4.33, 5.46, 6.27, 7.06, 7.75). Per RESEARCH_LEARNINGS lesson 97, this is a "characterization extension" — caps at 6.5 standalone, ~7.0–7.5 combined with methods paper. **Both sequences appear new to OEIS** — submission planned.
 - **Exact P(Hasse connected) for N=7.** Matt computed N=2-6: 1/2, 1/2, 13/24, 71/120, 461/720. N=7 is tractable with enumeration + careful counting.
 - **Joint distribution of (height, width) at N=6.** Partial result in Matt's paper.
 - **Extremal: what's the maximum E[f] over all distributions on labeled posets of size N?** New question.
