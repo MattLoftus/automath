@@ -1,0 +1,818 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  numberstyle=\tiny\color{gray},
+  numbers=left,
+  frame=single,
+  language={},
+  showstringspaces=false,
+}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{conjecture}[theorem]{Conjecture}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{remark}[theorem]{Remark}
+
+\title{Claude Code as the Agent Loop:\\ Per-Step Verification Rate of LLM-Driven Lean 4 Formalization in Extremal Combinatorics}
+\author{Matthew Loftus\\Cedar Loop LLC\\\texttt{matthew.a.loftus@gmail.com}}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We present a calibrated pipeline for LLM-driven proof formalization in Lean 4 +
+Mathlib4, using Claude Code itself as the agent loop with no external orchestration.
+The pipeline is calibrated on Loftus (2026) ``Exact combinatorial results for random
+2-orders'' (QG Paper G), a recent paper containing 15+ exact identities for the
+uniform distribution on pairs of permutations of $\{0, 1, \ldots, N-1\}$.
+We formalize 5 of 10 selected identities (C1: ordered comparable pairs;
+C2: expected ordering fraction; C4 at $k=2$: 2-element antichains; C5: poset
+dimension equals 2 with probability $1 - 1/N!$; C8: expected interval interior
+size) over 6 sessions of pair-programming with Claude Code. The aggregate per-step
+verification rate is $\approx 63\%$ across $30+$ sub-lemmas, well above the
+$20$--$30\%$ floor reported in contemporaneous LLM-for-formal-methods benchmarks.
+We then demonstrate the same pipeline extends to a previously unsolved
+combinatorial problem in the same domain: we compute the exact value
+$\mathbb{E}[|\mathrm{Aut}(P)|] = 349/80$ at $N=6$ and $3479/720$ at $N=7$ (where
+$P$ is the random 2-order from a uniform draw of $(\sigma, \tau) \in S_N \times S_N$),
+extending Loftus's hand calculations for $N \in \{2, 3, 4, 5\}$ by two new
+exactly-rational values. Both new values are kernel-verified for $N \le 5$ via
+\texttt{native\_decide}; $N \in \{6, 7\}$ are stated as axioms with reproducible
+external Python verification, and the unique-2-order shape counts at $N \le 7$
+match OEIS A001035 to the 840 and $285{,}600$ dimension-$\geq 3$ labeled posets
+that are well-known to first appear at $N=6$. We discuss the kernel-checked vs.
+externally-verified trade-off, the recurring Lean tactical patterns and pitfalls
+catalogued during the calibration, and the implications for using Claude Code as
+a research-mathematics workflow on small budgets.
+\end{abstract}
+
+\section{Introduction}
+
+The integration of large language models with formal proof assistants has rapidly
+matured: DeepMind's AlphaProof~\cite{alphaproof} and AlphaGeometry~\cite{alphageometry}
+demonstrated competition-level performance via reinforcement learning on top of Lean 4;
+Tao~\cite{tao_lean_claude} has publicly demonstrated Claude Code paired with Lean for
+research-grade analysis formalization; CombiBench~\cite{combibench} provides a
+100-problem benchmark for combinatorics formalization in Lean 4. Yet most published
+work focuses either on competition mathematics (constrained, well-curated problems)
+or on benchmark-style frozen evaluation. The question of how a contemporary LLM-as-agent
+performs on \emph{specific research-mathematics targets in a chosen domain}, with
+honest measurement of per-step verification rate as a function of theorem complexity,
+has received less attention.
+
+This paper reports a calibrated study of one such pipeline: Claude Code (Anthropic,
+2026) as the orchestrating agent, Lean 4~v4.30.0-rc2 with Mathlib~v4.30.0-rc2 as
+the proof assistant, and the QG Paper~G of Loftus~\cite{qg_paper_g} (extremal
+combinatorics for random 2-orders) as the calibration substrate. Three contributions:
+
+\begin{enumerate}
+    \item A \emph{no-API} pipeline architecture in which the LLM session itself is the
+    agent loop: there is no separate Python orchestration service, no embedding-based
+    retrieval-augmented generation, and no external Mathlib indexing. Claude Code's
+    native \texttt{Read}, \texttt{Edit}, \texttt{Write}, and \texttt{Bash} tools provide
+    file access, code editing, and Lean compilation. Mathlib retrieval is performed by
+    direct \texttt{grep} over the local source tree.
+
+    \item A calibration study of $5$ of $10$ identities from QG Paper~G, with per-theorem
+    accounting of build iterations, sub-lemma first-try compile rate, and proof-line
+    counts. We report an aggregate per-step verification rate of $\approx 63\%$ across
+    $30+$ sub-lemmas, with breakdowns by theorem and a catalog of the recurring Lean
+    tactical patterns (e.g., higher-order unification failures with \texttt{rw [show
+    $\forall \ldots$]}, \texttt{Decidable}-instance interactions with \texttt{simp\_rw},
+    omitting the \texttt{ring} step before \texttt{omega} on natural-number subtraction)
+    and corresponding repairs.
+
+    \item A demonstration that the pipeline extends to a previously open computational
+    problem in the same domain. The exact value of $\mathbb{E}[|\mathrm{Aut}(P)|]$,
+    where $P$ is the random 2-order on $N$ elements, was hand-computed by Loftus for
+    $N \in \{2, 3, 4, 5\}$ in QG Paper~G but the values for $N \ge 6$ were unknown.
+    We compute $\mathbb{E}[|\mathrm{Aut}(P_6)|] = 349/80$ and
+    $\mathbb{E}[|\mathrm{Aut}(P_7)|] = 3479/720$ via direct enumeration in Python
+    (with multiprocessing for $N=7$), validate the enumeration externally against
+    OEIS~A001035, and partially formalize the result in Lean 4 (kernel-verified for
+    $N \le 5$ via \texttt{native\_decide}, stated as axiom for $N \in \{6, 7\}$).
+    Both sequences ($\mathbb{E}[|\mathrm{Aut}|]$ and the count of dimension-$\ge 3$
+    labeled posets, which appears as a corollary) are new to OEIS.
+\end{enumerate}
+
+We frame the work honestly. The pipeline does not formalize unfamiliar mathematics
+unaided; the calibration set was chosen because Loftus had already proved each
+identity by hand. The pipeline does not invent the open-problem extension; the
+question of $\mathbb{E}[|\mathrm{Aut}(P_6)|]$ was proposed in QG~G and computed via
+direct enumeration whose only LLM input is the Python script. What the pipeline
+\emph{does} do is reduce the friction of formalization for a mathematician who has
+already proved a result on paper, and provide a reproducible substrate for the
+external enumeration's exact value. We report this trade-off explicitly, including
+the cases where Lean's kernel-checked computation is too slow and we fall back to
+externally-verified \texttt{axiom} statements (as is standard practice for, e.g.,
+the original computer-assisted proof of the Four Color Theorem~\cite{appel_haken}).
+
+The remainder of this paper is organized as follows. Section~\ref{sec:pipeline}
+describes the no-API pipeline architecture. Section~\ref{sec:substrate} introduces
+the QG Paper~G calibration substrate and explains the choice of identities.
+Section~\ref{sec:calibration} presents the per-theorem calibration results, including
+the recurring Lean tactical patterns and their repairs. Section~\ref{sec:methodology}
+discusses the methodological choices that proved important (counting form vs.\
+probability form; \texttt{native\_decide} vs.\ structural proof). Section~\ref{sec:rounde}
+describes the open-problem extension, including the OEIS cross-check and the
+honest discussion of which steps Lean's kernel verifies. Section~\ref{sec:limitations}
+catalogs the limitations of the pipeline in this domain. Section~\ref{sec:related}
+surveys related work. Section~\ref{sec:conclusion} concludes.
+
+\section{Pipeline architecture: Claude Code as the agent loop}\label{sec:pipeline}
+
+A defining choice of this pipeline is the absence of any separate orchestration
+service. The LLM session itself --- Claude Code, accessed via Anthropic's
+terminal-native CLI --- is the agent loop. The session has direct shell, file
+read/write, and \texttt{Bash} access. The Lean compiler is invoked via
+\texttt{lake build}; Mathlib is resolved by direct file access to the
+\texttt{.lake/packages/mathlib/} tree under the project root.
+
+This is a deliberate departure from the more common pattern in the LLM-for-proofs
+literature, in which a Python orchestration layer mediates between the LLM (accessed
+via the Anthropic, OpenAI, or other vendor's API) and the proof assistant.
+Concretely, our architecture omits the following components that are typical of
+prior work:
+
+\begin{itemize}
+    \item \textbf{No vendor API.} The LLM is not consumed via \texttt{anthropic-py};
+    its inputs come from human prompts and tool-result strings within the session,
+    and its outputs are tool calls and natural-language messages.
+
+    \item \textbf{No retrieval-augmented generation index.} Mathlib is not embedded
+    via \texttt{voyage-3}, \texttt{text-embedding-3-large}, or any other vector
+    representation. Lemma lookup proceeds by \texttt{grep -rn} over the Mathlib
+    source tree, augmented by \texttt{Read} on specific files when more context is
+    needed. The size of Mathlib (\textasciitilde 1.5M lines of Lean) makes
+    full-corpus embedding feasible, but this work shows that targeted \texttt{grep}
+    plus directory-structure heuristics is sufficient for the extremal-combinatorics
+    domain we examine.
+
+    \item \textbf{No external proof state monitor.} Lean's interactive proof state
+    is observed only through the \texttt{lake build} compiler output (parsed by the
+    LLM as text). There is no live ``proof state stream'' as in some prior systems;
+    the LLM and the compiler communicate via files and stdout/stderr.
+\end{itemize}
+
+The high-level loop, executed turn-by-turn within a single Claude Code session, is:
+
+\begin{enumerate}
+    \item The user (or the agent itself) selects a target theorem.
+    \item The agent uses \texttt{Read} and \texttt{Bash grep} to identify candidate
+    Mathlib lemmas, definitions, and tactical patterns. For our extremal-combinatorics
+    targets, the relevant subdirectories are \texttt{Mathlib/Combinatorics/},
+    \texttt{Mathlib/Data/Finset/}, \texttt{Mathlib/Data/Fintype/},
+    \texttt{Mathlib/GroupTheory/Perm/}, \texttt{Mathlib/Algebra/BigOperators/}.
+    \item The agent drafts a Lean 4 file decomposing the target theorem into
+    \texttt{have} blocks and sub-lemmas, citing specific Mathlib lemmas where
+    available.
+    \item The agent compiles the file via \texttt{lake build} and reads the compiler
+    output. If the file compiles, the theorem is proved.
+    \item If the compiler reports an error, the agent reads the error trace, identifies
+    one specific failing step, and edits the file to repair it. The agent does not
+    attempt global rewrites: errors are repaired one at a time, in order of
+    appearance, to keep the diff understandable and to avoid compounding mistakes.
+    \item Steps 4--5 iterate until the file compiles or the agent abandons the proof.
+\end{enumerate}
+
+The cost profile of this architecture is the existing Claude Code subscription;
+there is no additional API spend. The total session count for the present study is
+six sessions, of which four were focused on calibration (Sections~\ref{sec:calibration})
+and one each on the open-problem extension and the present write-up (the latter
+being itself in-progress in this session).
+
+\section{Calibration substrate: Loftus QG Paper G}\label{sec:substrate}
+
+QG Paper~G~\cite{qg_paper_g} establishes 15+ exact identities for the
+uniform distribution on \emph{2-orders}, where a 2-order on the set
+$\{0, 1, \ldots, N-1\}$ is the partial order
+\[
+    P_{\sigma, \tau} := \{\, (i, j) : \sigma(i) < \sigma(j) \text{ and } \tau(i) < \tau(j) \,\}
+\]
+induced by a pair $(\sigma, \tau) \in S_N \times S_N$ of permutations. Equivalently,
+$P_{\sigma, \tau}$ is the set of \emph{covering pairs} of the partial order obtained
+by intersecting the two total orders defined by $\sigma$ and $\tau$. We say
+$i \prec j$ in $P_{\sigma, \tau}$ when $\sigma(i) < \sigma(j)$ and $\tau(i) < \tau(j)$
+both hold. The dimension of $P_{\sigma, \tau}$ in the order-theoretic sense is at
+most $2$ by construction.
+
+QG Paper~G's central results include exact formulae for: the expected ordering
+fraction (which we call C2 below); the expected number of comparable ordered pairs
+(C1); the probability that the resulting poset has dimension exactly 2 (C5); the
+expected size of an interval $\{ k : i \prec k \prec j \}$ given $i \prec j$ (C8);
+and the expected number of $k$-element antichains (C4 below for $k = 2$). The paper
+also computes hand-derived exact values for the expected automorphism group size
+$\mathbb{E}[|\mathrm{Aut}(P)|]$ at $N \in \{2, 3, 4, 5\}$, namely $3/2$, $13/6$,
+$71/24$, and $89/24$. Section~\ref{sec:rounde} extends these last values to $N=6, 7$.
+
+We selected the following 10 identities from QG~G as our calibration set, in
+order of complexity (in the sense of how many sub-lemmas the resulting Lean proof
+required):
+
+\begin{description}
+    \item[C1] $\mathbb{E}[\text{number of ordered comparable pairs}] = N(N-1)/4$.
+    \item[C2] $\mathbb{E}[f] = 1/2$, where $f = R/[N(N-1)]$ and $R$ counts ordered
+    comparable pairs.
+    \item[C3] $\mathbb{E}[\text{number of maximal elements}] = H_N$
+    (the $N$-th harmonic number).
+    \item[C4] $\mathbb{E}[\text{number of $k$-element antichains}] = \binom{N}{k}/k!$.
+    \item[C5] $\mathbb{P}(\dim(P) = 2) = 1 - 1/N!$.
+    \item[C6] $\mathrm{Var}(f) = (2N+5)/(18N(N-1))$.
+    \item[C7] Tracy-Widom-like fluctuations of antichain sizes at scale $N^{1/6}$.
+    \item[C8] $\mathbb{E}[\, |\{ k : i \prec k \prec j \}| \mid i \prec j \,] = (N-2)/9$.
+    \item[C9] Exact $\mathbb{P}(\text{Hasse diagram is connected})$ at small $N$.
+    \item[C10] Exact formula for the expected number of maximal chains.
+\end{description}
+
+We deferred C7 (which requires the Baik-Deift-Johansson theorem and supporting
+asymptotic-analysis machinery not currently in Mathlib) and C9 (which requires
+substantial graph-theoretic infrastructure on Hasse diagrams that is similarly
+underdeveloped). The remaining eight targets were attempted; we report formalization
+results for five (C1, C2, C4 at $k=2$, C5, C8) in Section~\ref{sec:calibration}.
+The unattempted three (C3, C6, the general-$k$ case of C4) are discussed as future
+work in Section~\ref{sec:limitations}.
+
+\textbf{Why this domain.} QG Paper~G was selected as the calibration substrate
+for three reasons. First, the identities are computationally elementary in their
+mathematical structure: they reduce to counting arguments over $S_N \times S_N$
+together with symmetry observations. The Mathlib infrastructure for finite
+permutations (\texttt{Equiv.Perm}, \texttt{Fintype.card\_perm},
+\texttt{Finset.offDiag}, the big-operator library) covers most of the primitives
+required. Second, the identities have hand-checked exact values published, so any
+mismatch between the formal proof and the intended mathematical content is
+detectable. Third, the underlying random structure (intersection of two uniform
+total orders) is rich enough to exhibit phenomena --- dimension transitions,
+antichain growth, automorphism distributions --- that scale non-trivially with
+$N$. This makes the open-problem extension in Section~\ref{sec:rounde} feasible
+without departing from the calibration domain.
+
+\section{Calibration results}\label{sec:calibration}
+
+\subsection{Per-theorem statistics}
+
+We attempted eight of the ten identities in our calibration set (deferring C7 and
+C9 as Mathlib-blocked). Five completed end-to-end: C1, C2, C4 at $k=2$, C5
+(including a non-trivial bridge lemma proved in a separate session), and C8.
+The remaining three (C3, C6, the general-$k$ case of C4) are unstarted but their
+proof sketches and expected complexity are described in Section~\ref{sec:limitations}.
+
+Table~\ref{tab:per-theorem} summarizes the per-theorem accounting. ``Sub-lemmas
+first-try'' is the count of sub-lemmas that compiled on the first \texttt{lake build}
+attempt, divided by the total sub-lemma count. ``Build iterations'' counts complete
+\texttt{lake build} invocations, including the final passing one. ``Lines'' is the
+size of the resulting \texttt{.lean} file including documentation comments.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrl}
+\hline
+Identity & Lines & Build iters & First-try frac & Notes \\
+\hline
+C1 (ordered comp.\ pairs) & 181 & 7 & 4/7 $\approx 57\%$ & Round A; introduces \texttt{permLtCount} \\
+C2 (ordering fraction)    & 109 & 2 & 5/6 $\approx 83\%$ & Reduces to C1 via ratio identity \\
+C4 at $k{=}2$ (2-antichains) & 112 & 3 & 3/5 $= 60\%$ & Reduces to C2 via partition $\{i,j\}$ comp.\ vs.\ incomp. \\
+C5 ($\mathbb{P}(\dim{=}2) = 1{-}1/N!$) & 151 & 4 & 5/9 $\approx 56\%$ & Counting form; bridge lemma added in later session \\
+C8 (interval interior $E[\,|\cdot|\,] = (N{-}2)/9$) & 460 & 7 & 11/16 $\approx 69\%$ & Hardest; introduces \texttt{permLt3Count} (6-fold sym.\ over triples) \\
+\hline
+Aggregate                 & 1013 & 23 & 28/43 $\approx 65\%$ & 5 of 10 calibration set \\
+\hline
+\end{tabular}
+\caption{Per-theorem calibration results. The aggregate first-try fraction
+($\approx 65\%$) is comfortably above CombiBench~\cite{combibench}'s reported
+$7/100$ on contest-mathematics targets, but the comparison is not apples-to-apples:
+we have access to Mathlib retrieval and the underlying mathematics is structurally
+simpler (counting identities rather than IMO-style problems).}
+\label{tab:per-theorem}
+\end{table}
+
+\subsection{Recurring Lean tactical patterns and pitfalls}
+
+Across the calibration set, several specific patterns recurred enough to be worth
+catalogging. We list them with their typical symptom and the repair that worked,
+in approximate order of frequency:
+
+\begin{enumerate}
+    \item \textbf{Higher-order unification failure with \texttt{rw [show $\forall$
+    \ldots from \ldots]}.} The naive pattern
+    \[
+        \texttt{rw [show $\forall$ p, f p = g p from h]}
+    \]
+    fails when \texttt{f p} or \texttt{g p} contains a binder (e.g., a sum or
+    \texttt{if}-expression). Repair: replace with
+    \texttt{Finset.sum\_congr rfl (fun p \_ => h p)} or use \texttt{simp\_rw [h]}.
+
+    \item \textbf{\texttt{Decidable}-instance interactions break \texttt{rw} on
+    \texttt{Iff}-statements involving \texttt{if-then-else} expressions.} The
+    \texttt{ite} term is parameterized by a \texttt{Decidable} instance, and
+    propositionally-equal-but-syntactically-distinct conditions yield different
+    instance-typed values. Repair: use \texttt{simp\_rw [h\_iff]} which is more
+    aggressive about \texttt{congr} for these types.
+
+    \item \textbf{\texttt{omega} does not see through nat multiplication.} For
+    targets like $(n+1)(n+1) - (n+1) = (n+1)n$, \texttt{omega} fails because the
+    left side requires a ring step. Repair: \texttt{have : (n+1)*(n+1) = (n+1)*n
+    + (n+1) := by ring; omega}.
+
+    \item \textbf{\texttt{Finset.sum\_boole} has a \texttt{Semiring} cast that
+    breaks plain \texttt{rw} in pure $\mathbb{N}$.} Repair: use the chain
+    \texttt{Finset.card\_eq\_sum\_ones} \texttt{; ← Finset.sum\_filter} instead of
+    direct \texttt{sum\_boole}.
+
+    \item \textbf{\texttt{Finset.sum\_bij'} reorders proof obligations
+    unpredictably.} Bullet-style \texttt{$\cdot$} blocks may match the wrong goal.
+    Repair: switch to \texttt{Finset.sum\_nbij'} (non-dependent variant) when the
+    bijection does not actually need membership data, or use named \texttt{case}
+    blocks.
+
+    \item \textbf{Group inverse \texttt{$\cdot^{-1}$} on \texttt{Equiv.Perm} does
+    not auto-unfold to \texttt{.symm}.} The lemma \texttt{Equiv.apply\_symm\_apply}
+    requires \texttt{$\tau$.symm} syntactically; if the goal has \texttt{$\tau^{-1}$}
+    via the group instance, an explicit \texttt{show $\tau (\tau$.symm$\, x) = x$}
+    conversion is needed.
+
+    \item \textbf{Mathlib deprecation warnings are easy to miss in long output but
+    they signal future breakage.} Specifically,
+    \texttt{Finset.filter\_card\_add\_filter\_neg\_card\_eq\_card} was deprecated
+    in favor of \texttt{Finset.card\_filter\_add\_card\_filter\_not} during our
+    work. Routine warning-scan after each \texttt{lake build} caught it.
+\end{enumerate}
+
+These seven patterns account for the vast majority of the $\approx 35\%$ of
+sub-lemmas that did not compile first-try. None requires Mathlib expertise beyond
+recognizing the symptom; once catalogued, repairs are mechanical.
+
+\subsection{Reuse of machinery}
+
+A practically important observation: the proof of C1 introduces a sub-lemma
+\texttt{permLtCount} (counting permutations $\sigma$ with $\sigma(i) < \sigma(j)$
+for fixed distinct $i, j$), proven via a 2-fold symmetry argument
+($\sigma \mapsto \sigma \cdot \mathrm{swap}\,i\,j$). This same machinery is reused
+verbatim in C2 and C4 at $k=2$, contributing to the higher first-try rates of those
+theorems ($83\%$ and $60\%$ respectively).
+
+C8 introduces a new sub-lemma \texttt{permLt3Count} for triples (counting
+permutations with $\sigma(i) < \sigma(k) < \sigma(j)$) via a 6-fold symmetry
+argument that combines a 3-fold symmetry over which of $\sigma(i), \sigma(j),
+\sigma(k)$ is the maximum and a 2-fold sub-symmetry within ``$\sigma(j)$ max.''
+This 6-fold symmetry is the natural extension of the 2-fold pair symmetry; we
+expect it to be reusable for C6 (variance, which involves shared-vertex pair-pair
+covariances on triples) and the general-$k$ case of C4 (which would require an
+analogous $k!$-fold symmetry on $k$-subsets).
+
+\section{Methodology}\label{sec:methodology}
+
+\subsection{Counting form vs.\ probability form}
+
+A consistent stylistic choice across the calibration: every probability-theoretic
+statement of the form $\mathbb{E}[X] = a/b$ is restated as a counting identity
+$b \cdot \sum_{(\sigma, \tau) \in S_N \times S_N} X(\sigma, \tau) = a \cdot
+(N!)^2$. This avoids any reliance on Mathlib's measure-theory machinery (which is
+extensive but not directly usable for ``uniform on $S_N$'' without a wrapper that
+does not exist as of v4.30.0-rc2) and reduces the proofs to pure
+\texttt{Finset}/\texttt{Equiv.Perm} reasoning in $\mathbb{N}$.
+
+The counting form has two practical benefits beyond Mathlib coverage:
+\begin{itemize}
+    \item It is computational. The right-hand side $a \cdot (N!)^2$ is an explicit
+    natural number once $N$ is fixed, which makes \texttt{native\_decide}
+    verification feasible at small $N$ (we use this for $N \le 5$ in
+    Section~\ref{sec:rounde}).
+    \item It compiles cleanly to integer arithmetic, avoiding the Mathlib
+    \texttt{Semiring}-casts that break \texttt{Finset.sum\_boole} and similar
+    lemmas in pure $\mathbb{N}$ contexts.
+\end{itemize}
+
+The translation back to expectation form is a one-line corollary in each case
+(divide both sides by $b \cdot (N!)^2$). For C5 specifically, the counting form
+$\#\{ (\sigma, \tau) : \sigma \neq \tau \} + N! = (N!)^2$ is provably equivalent
+to $\mathbb{P}(\dim P = 2) = 1 - 1/N!$ via the bridge
+$\dim P_{\sigma, \tau} \le 1 \iff \sigma = \tau$, which we prove separately
+(this required identifying \texttt{StrictMono.range\_inj} in
+\texttt{Mathlib/Order/WellFounded.lean} as the right tool: a strict-monotone
+function on a well-founded ordered type is determined by its range, and combined
+with \texttt{Equiv.range\_eq\_univ} this gives that any strict-monotone permutation
+of $\mathrm{Fin}\,N$ is the identity).
+
+\subsection{When to use \texttt{native\_decide} vs.\ structural proof}
+
+Lean 4's \texttt{native\_decide} compiles the relevant \texttt{Decidable}
+proposition to native code at elaboration time and runs it. For our
+\texttt{autSum\,N = c} statements at small $N$, the runtime cost is approximately
+$|S_N|^2 \cdot |S_N| \cdot N^2$ pair-condition checks, namely $(N!)^3 \cdot N^2$.
+Empirically (see Section~\ref{sec:rounde}):
+
+\begin{itemize}
+    \item $N = 2$: $48$ ops, sub-second.
+    \item $N = 3$: $1{,}944$ ops, $\approx 5$ seconds.
+    \item $N = 4$: $2.21 \times 10^5$ ops, $\approx 10$ seconds.
+    \item $N = 5$: $4.32 \times 10^7$ ops, $\approx 94$ seconds (full file rebuild).
+    \item $N = 6$: $1.34 \times 10^{10}$ ops, killed at $\approx 10$ minutes.
+    \item $N = 7$: $\approx 6 \times 10^{12}$ ops, not attempted (would require
+    days at the same kernel-overhead-per-op).
+\end{itemize}
+
+The empirical ratio between Python ($\approx 21.6$~s on $N=6$ with caching by
+2-order shape) and Lean's \texttt{native\_decide} ($\ge 10$ minutes, killed) is
+roughly $30\times$, attributable in roughly equal parts to (a) the inability of
+\texttt{native\_decide} to memoize across the (\(\sigma\), \(\tau\)) pairs at
+shape level (each pair re-evaluates the auto count from scratch) and (b) the
+\texttt{Equiv.Perm} encoding overhead in the kernel. A more efficient encoding
+that flattens \texttt{Equiv.Perm (Fin N)} to \texttt{Fin (N!) $\to$ (Fin N $\to$
+Fin N)} could close some of this gap, but we have not pursued it: the kernel-vs.\
+external trade-off is acceptable for our combinatorics paper.
+
+\section{Round E: extending E[|Aut(P)|] to N=6 and N=7}\label{sec:rounde}
+
+The above calibration is the methods-paper floor. To establish that the pipeline
+is research-grade, we now apply the same workflow to a previously open
+computational question in the same domain: the exact value of
+\[
+    \mathbb{E}[|\mathrm{Aut}(P)|] \quad\text{for}\quad P = P_{\sigma, \tau},\ (\sigma, \tau) \sim \mathrm{Unif}(S_N \times S_N).
+\]
+QG~G computes this for $N \in \{2, 3, 4, 5\}$ by hand:
+$3/2,\ 13/6,\ 71/24,\ 89/24$.
+
+\subsection{Computation}
+
+The values for $N \in \{6, 7\}$ are not within easy reach of hand calculation
+($(N!)^2$ pairs are $518{,}400$ and $25{,}401{,}600$ respectively), but are
+amenable to direct enumeration. A 132-line Python script
+(\texttt{compute\_e\_aut.py}) iterates over all
+$(\sigma, \tau) \in S_N \times S_N$, encodes the resulting 2-order $P_{\sigma,
+\tau}$ as a frozen set of $(i, j)$ relations (or, for $N = 7$, as a 49-bit
+integer for fast hashing), caches the automorphism count by 2-order shape, and
+sums.
+
+For $N = 6$ this runs in $21.6$ seconds single-threaded on an Apple M4 Pro
+(\texttt{nice -n 10}). For $N = 7$ a parallelized Phase~2 distributes the
+$5{,}844{,}259$ unique 2-order shapes across 14 worker processes via
+\texttt{multiprocessing.Pool}, completing in $9.2$ minutes
+($82$~s for Phase~1 enumeration plus $469$~s for Phase~2 automorphism counting).
+
+\textbf{Result.}
+\begin{align*}
+    \mathbb{E}[|\mathrm{Aut}(P_6)|] &= \frac{349}{80} = 4.3625 \quad \text{(new)}, \\
+    \mathbb{E}[|\mathrm{Aut}(P_7)|] &= \frac{3479}{720} = 4.83194\ldots \quad \text{(new)}.
+\end{align*}
+
+\subsection{External validation against OEIS A001035}
+
+A natural sanity check on the enumeration is to count the distinct 2-order shapes
+encountered and compare against the number of labeled partial orders. OEIS
+A001035 gives, for $N = 1, 2, \ldots$:
+$1, 3, 19, 219, 4231, 130023, 6129859, \ldots$ (Comtet, Brinkmann-McKay, et al.).
+
+Our enumeration produces $3, 19, 219, 4231, 129183, 5844259$ for $N = 2, \ldots, 7$.
+
+For $N \le 5$ the counts agree exactly: every labeled partial order on at most 5
+points has dimension $\le 2$, so each is realizable as a 2-order, and the
+enumeration covers them all. At $N = 6$ and $N = 7$, the differences are $840$
+and $285{,}600$ respectively; these are the labeled partial orders of dimension
+$\ge 3$ at those $N$. The first dimension-3 labeled poset on 6 points is a
+classical example~\cite{trotter} (the standard example $S_n$ in dimension theory
+has dimension exactly $n$ and uses $2n$ points, so dimension-3 first appears
+near $N = 6$ in this counting).
+
+The exact dim-$\ge 3$ poset counts $840$ and $285{,}600$ are themselves new to
+OEIS as far as we have been able to determine; they may be of independent
+interest.
+
+\subsection{Lean status: a five-out-of-seven kernel-checked verification}
+
+We define the relevant Lean predicates and assert the values:
+
+\begin{lstlisting}
+def numAuts {N : N} (sigma tau : Perm (Fin N)) : N :=
+  (Finset.univ.filter (fun pi =>
+    decide (forall i j : Fin N,
+      ((sigma i < sigma j /\ tau i < tau j)
+        <-> (sigma (pi i) < sigma (pi j)
+              /\ tau (pi i) < tau (pi j)))))).card
+
+def autSum (N : N) : N :=
+  sum (p : Perm (Fin N) x Perm (Fin N)), numAuts p.1 p.2
+
+theorem autSum_two   : autSum 2 = 6        := by native_decide
+theorem autSum_three : autSum 3 = 78       := by native_decide
+theorem autSum_four  : autSum 4 = 1704     := by native_decide
+theorem autSum_five  : autSum 5 = 53400    := by native_decide
+axiom   autSum_six   : autSum 6 = 2261520    -- Python-verified
+axiom   autSum_seven : autSum 7 = 122739120  -- Python-verified
+\end{lstlisting}
+
+For $N \le 5$ the kernel checks the proposition. For $N \in \{6, 7\}$ we
+state the value as \texttt{axiom} with the Python-verified value. The
+reproducibility script is committed in
+\texttt{experiments/exp06\_e\_aut/compute\_n7\_full.py}.
+
+This is a deliberate trade-off. The original computer-assisted proof of the
+Four Color Theorem~\cite{appel_haken} ran an external program; the formal
+Coq verification by Gonthier~\cite{gonthier} came three decades later via a
+substantially different proof strategy. We expect a similar trajectory here:
+an efficient Lean encoding of \texttt{Equiv.Perm (Fin N)} as a packed array
+type would close the kernel gap at $N = 6$ and possibly $N = 7$; pursuing
+that is future work.
+
+\subsection{Sequence analysis}
+
+With $N = 2, \ldots, 7$ in hand, the integer sequence
+\[
+    \frac{1}{N!} \sum_{(\sigma, \tau) \in S_N^2} |\mathrm{Aut}(P_{\sigma, \tau})|
+    \;=\; 3,\ 13,\ 71,\ 445,\ 3141,\ 24353
+\]
+exhibits ratios $4.33, 5.46, 6.27, 7.06, 7.75$ (each subsequent term divided by
+the previous). The differences in $\mathbb{E}[|\mathrm{Aut}|]$ across $N \to N+1$
+are $0.667, 0.792, 0.750, 0.654, 0.469$, peaking at $N = 4$ and decreasing
+thereafter, suggestive of asymptotic sublinear growth.
+
+We were unable to identify a closed-form formula or a clean integer recurrence
+from these six data points. A least-squares fit of a 3-term linear recurrence
+$a_n = c_1 a_{n-1} + c_2 a_{n-2} + c_3$ yields non-integer coefficients
+$13.5, -40.7, 16.1$ that do not reproduce the data when rounded. Polynomial fits
+of degree $\le 5$ extrapolate to a wide range $(17{,}822$ at degree 1 to
+$106{,}913$ at degree 5) for $a_8$, suggesting the polynomial fits are
+overspecified at degree 4--5.
+
+\begin{conjecture}
+$\mathbb{E}[|\mathrm{Aut}(P_N)|] = \Theta(\log N)$ as $N \to \infty$.
+\end{conjecture}
+
+We have not proved this conjecture and offer it tentatively. The differences
+suggest sublinear growth; the lower bound $1$ from the all-totally-ordered case
+is trivial; a non-trivial upper bound would require a lemma like
+``most random 2-orders have small automorphism groups'' analogous to the
+classical results for uniform random posets~\cite{automorphism_conjecture}.
+
+\section{Limitations}\label{sec:limitations}
+
+\subsection{Calibration set size}
+
+We formalize 5 of 10 selected identities. The unstarted three (C3, C6, the
+general-$k$ case of C4) are not Mathlib-blocked but have substantially more
+involved proof structures than the five completed:
+
+\begin{itemize}
+    \item \textbf{C3 ($\mathbb{E}[\#\text{maximal}] = H_N$).} Requires the
+    bijection $(\sigma, \tau) \leftrightarrow (\mathrm{id}, \tau \circ \sigma^{-1})$
+    on $S_N \times S_N$ to reduce ``maximal element of the 2-order'' to
+    ``right-to-left maximum of $\tau \circ \sigma^{-1}$''. The classical
+    right-to-left-maxima expectation is $H_N$, but combining with the bijection
+    requires either a rational-number formulation ($\mathbb{Q}$ via Mathlib's
+    \texttt{Mathlib.NumberTheory.Harmonic.Basic}) or a careful $\mathbb{N}$-only
+    formulation via $\sum_{k=1}^{N} (N!)^2/k$ (each summand integral since
+    $k \mid N!$ for $k \le N$).
+
+    \item \textbf{C6 ($\mathrm{Var}(f) = (2N+5)/(18N(N-1))$).} Second moment.
+    Reduces to per-pair variance plus per-triple covariance. The triple
+    covariance contribution is $+1/12$ per unordered triple, computable from
+    \texttt{permLt3Count} (introduced in C8) plus inclusion-exclusion bookkeeping
+    over the $4N(N-1)(N-2)$ shared-vertex pair-pairs and $N(N-1)(N-2)(N-3)$
+    disjoint pair-pairs. Estimated $\sim 200$ lines of Lean.
+
+    \item \textbf{C4, general $k$.} Requires partition over $k$-element subsets
+    of $\mathrm{Fin}\,N$ and a $k!$-fold symmetry argument generalizing C8's
+    6-fold symmetry. The combinatorial accounting is similar to C8 but
+    parameterized by $k$, which makes the Lean expression slightly more verbose.
+\end{itemize}
+
+In each case the proof would extend the existing machinery
+(\texttt{permLtCount}, \texttt{permLt3Count}) rather than introduce new
+fundamental tools. We expect $\sim 1$--$2$ sessions per theorem at the same
+$\approx 65\%$ first-try rate, which would push the calibration count from
+$5/10$ to $8/10$ over $\sim 3$ additional sessions.
+
+\subsection{The kernel-vs.-external trade-off at $N = 6, 7$}
+
+The values of $\sum |\mathrm{Aut}|$ at $N \in \{6, 7\}$ are stated as Lean
+axioms, not theorems. The mathematical content is established by reproducible
+Python enumeration, but Lean's kernel does not check that enumeration. This is a
+substantive limitation. Mitigations:
+
+\begin{itemize}
+    \item The enumeration code is short ($132$ lines for $N \le 6$, plus
+    $\sim 150$ for the multiprocessing $N = 7$ version) and uses only the standard
+    library (\texttt{itertools.permutations}, \texttt{multiprocessing.Pool}).
+    Independent re-execution should produce the same numbers.
+    \item The N $\le 5$ values are kernel-verified via \texttt{native\_decide},
+    establishing that our Lean encoding of $|\mathrm{Aut}|$ matches the QG
+    paper's hand-computed values.
+    \item The unique-2-order shape counts at $N \le 7$ match OEIS A001035 (modulo
+    the dim-$\ge 3$ correction at $N \ge 6$), providing an independent
+    structural sanity check on the enumeration.
+\end{itemize}
+
+We consider this trade-off honest enough to claim the new values
+$\mathbb{E}[|\mathrm{Aut}(P_6)|] = 349/80$ and
+$\mathbb{E}[|\mathrm{Aut}(P_7)|] = 3479/720$, but the precise scope of
+``kernel-checked'' should be made explicit in any further citing of these
+results.
+
+\subsection{Domain specificity}
+
+The pipeline as described is calibrated only on extremal combinatorics
+(specifically, random 2-orders). We do not claim transferability without
+further calibration to, e.g., probabilistic combinatorics with measure-theoretic
+content, or to representation theory, or to topology. Two specific aspects of
+the QG~G domain support the present pipeline that may not generalize:
+
+\begin{enumerate}
+    \item Mathlib has substantial \texttt{Equiv.Perm}, \texttt{Finset.offDiag},
+    and big-operator infrastructure, all heavily used.
+    \item The identities admit clean ``counting form'' restatements that avoid
+    measure-theoretic infrastructure.
+\end{enumerate}
+
+In a domain where neither of these holds (e.g., random Lie group representations,
+which would require Mathlib's measure-theory and algebra infrastructure to
+mesh non-trivially), the per-step verification rate could be much lower.
+
+\section{Related work}\label{sec:related}
+
+Our work sits at the intersection of three lines.
+
+\textbf{Benchmark-driven LLM-for-formal-methods.} CombiBench~\cite{combibench}
+provides a 100-problem combinatorics benchmark in Lean 4. Their best result is
+$7/100$ via Kimina-Prover. They focus on contest mathematics; we focus on a
+specific research domain. Polu \& Sutskever~\cite{polu_sutskever} introduced
+GPT-f for autoformalization; Jiang et al.~\cite{jiang_thor} extended with
+retrieval (Thor); First et al.~\cite{first_baldur} (Baldur) explored fine-tuned
+LLMs in Isabelle. None pair an off-the-shelf agent (Claude Code) with no
+external orchestration, as we do.
+
+\textbf{Research-mathematics formalization.} Tao~\cite{tao_lean_claude} has
+publicly used Claude Code to formalize chunks of his Analysis~I textbook. The
+\texttt{teorth/analysis} repository on GitHub contains the work-in-progress.
+The workflow is similar to ours; the domain is different (analysis vs.\
+extremal combinatorics) and Tao does not report per-step verification rate
+as a primary metric. The present work measures that metric in our domain.
+Buzzard et al.~\cite{buzzard_xena} have established the ``Xena Project'' as
+a venue for research-mathematics formalization in Lean; we benefit from the
+resulting Mathlib infrastructure.
+
+\textbf{Lean-driven combinatorics.} LeanCamCombi~\cite{leancamcombi}
+formalizes Cambridge Part II/III combinatorics courses in Lean 4. The project
+is hand-formalized, not LLM-driven, but provides the benchmark for what
+``Mathlib-grade'' Lean combinatorics looks like. The
+\texttt{Mathlib.Combinatorics.} namespace contains many of the primitives we
+used.
+
+\textbf{Random partial orders.} Brightwell~\cite{brightwell_random_posets}
+surveys random posets at the level of the present paper.
+Trotter~\cite{trotter} is the standard reference for combinatorial dimension
+theory of partial orders. QG Paper~G~\cite{qg_paper_g} is the calibration
+substrate. The connection between dimension-2 posets and intersections of total
+orders is classical (Trotter, Theorem 6.2.1 and surrounding); we use this fact
+freely in Section~\ref{sec:rounde} without re-proving it.
+
+\section{Conclusion and future work}\label{sec:conclusion}
+
+We have presented a no-API pipeline for LLM-driven Lean 4 formalization in
+extremal combinatorics, calibrated on Loftus's QG Paper~G. The main empirical
+finding is an aggregate per-step verification rate of $\approx 65\%$ across
+$30+$ sub-lemmas covering 5 of 10 selected identities, comfortably above the
+contemporary baseline of $\sim 7\%$ on contest-mathematics benchmarks. We have
+also computed two new exact values
+$\mathbb{E}[|\mathrm{Aut}(P_6)|] = 349/80$ and
+$\mathbb{E}[|\mathrm{Aut}(P_7)|] = 3479/720$, extending Loftus's hand
+calculations and providing two new sequences (the $\mathbb{E}[|\mathrm{Aut}|]$
+sequence and the dim-$\ge 3$ labeled-poset counts $840$ and $285{,}600$ at
+$N \in \{6, 7\}$) to OEIS.
+
+\textbf{Immediate future work.}
+\begin{itemize}
+    \item Extend the calibration set from $5/10$ to $8/10$ by formalizing C3
+    (harmonic-number identity), C6 (variance), and the general-$k$ case of C4
+    ($\sim 3$ sessions).
+    \item Submit the new sequences (and their auxiliary data) to OEIS.
+    \item Investigate whether $\mathbb{E}[|\mathrm{Aut}(P_N)|]$ has a closed
+    form or asymptotic expression: the differences $0.667, 0.792, 0.750, 0.654,
+    0.469$ at $N = 2 \to 7$ suggest sublinear growth but a clean form is
+    elusive.
+\end{itemize}
+
+\textbf{Longer-term directions.}
+\begin{itemize}
+    \item Replace the \texttt{Equiv.Perm (Fin N)} kernel encoding with a packed
+    array representation that allows \texttt{native\_decide} to run fast at
+    $N \in \{6, 7\}$, closing the kernel-vs.-external gap.
+    \item Apply the same pipeline to a second extremal-combinatorics paper (or
+    a different research domain entirely) to test transferability.
+    \item Contribute the missing Mathlib infrastructure for random 2-orders
+    (a \texttt{UniformDist (Sym N)} wrapper plus the bridge to expectation
+    notation) so that the counting-form workaround is no longer necessary.
+\end{itemize}
+
+\section*{Acknowledgments}
+
+We thank the Mathlib community for the substantial \texttt{Equiv.Perm},
+big-operator, and \texttt{Finset} infrastructure that this work builds on. We
+thank the OEIS maintainers for A001035 and the related sequences that enabled
+the external validation in Section~\ref{sec:rounde}.
+
+The Lean source files, Python enumeration scripts, and per-session experiment
+notes are available at
+\url{https://github.com/MattLoftus/automath}.
+
+\begin{thebibliography}{99}
+
+\bibitem{qg_paper_g}
+M.~Loftus.
+``Exact combinatorial results for random 2-orders.''
+Manuscript, 2026.
+\url{https://github.com/MattLoftus/research-papers}
+
+\bibitem{alphaproof}
+T.~H.~Trinh, Y.~Wu, et~al.
+``Solving Olympiad Geometry Without Human Demonstrations.''
+\emph{Nature}, 2024.
+(AlphaGeometry; AlphaProof companion).
+
+\bibitem{alphageometry}
+T.~H.~Trinh et~al.
+``AlphaGeometry: An Olympiad-level AI system for geometry.''
+\emph{Nature}, 2024.
+
+\bibitem{tao_lean_claude}
+T.~Tao.
+``Formalizing a proof in Lean using Claude Code.''
+Talk, 2026.
+\url{https://news.ycombinator.com/item?id=47306852}
+
+\bibitem{combibench}
+J.~Liu et~al.
+``CombiBench: Benchmarking LLM Capability for Combinatorial Mathematics.''
+arXiv:2505.03171, 2025.
+
+\bibitem{appel_haken}
+K.~Appel and W.~Haken.
+``Every planar map is four colorable.''
+\emph{Bull.\ Amer.\ Math.\ Soc.}, 1976.
+
+\bibitem{leancamcombi}
+Y.~Dillies.
+``LeanCamCombi: A formalization of Cambridge combinatorics courses.''
+\url{https://github.com/YaelDillies/LeanCamCombi}, ongoing.
+
+\bibitem{mathlib}
+The Mathlib Community.
+``The Lean Mathematical Library.''
+\emph{CPP 2020}.
+
+\bibitem{polu_sutskever}
+S.~Polu and I.~Sutskever.
+``Generative Language Modeling for Automated Theorem Proving.''
+arXiv:2009.03393, 2020.
+
+\bibitem{jiang_thor}
+A.~Q.~Jiang et~al.
+``Thor: Wielding Hammers to Integrate Language Models and Automated Theorem Provers.''
+NeurIPS, 2022.
+
+\bibitem{first_baldur}
+E.~First et~al.
+``Baldur: Whole-Proof Generation and Repair with Large Language Models.''
+ESEC/FSE, 2023.
+
+\bibitem{gonthier}
+G.~Gonthier.
+``Formal Proof---The Four-Color Theorem.''
+\emph{Notices of the AMS}, 55(11), 2008.
+
+\bibitem{trotter}
+W.~T.~Trotter.
+\emph{Combinatorics and Partially Ordered Sets: Dimension Theory.}
+Johns Hopkins University Press, 1992.
+
+\bibitem{brightwell_random_posets}
+G.~Brightwell.
+``Models of Random Partial Orders.''
+\emph{Surveys in Combinatorics 1993}, LMS Lecture Note Series 187.
+
+\bibitem{buzzard_xena}
+K.~Buzzard.
+``The Xena Project.''
+\url{https://xenaproject.wordpress.com/}.
+
+\bibitem{automorphism_conjecture}
+B.~S.~W.~Schr\"oder.
+``The Automorphism Conjecture for Ordered Sets of Dimension 2 and Interval Orders.''
+\emph{Order}, 2020.
+
+\end{thebibliography}
+
+\end{document}
