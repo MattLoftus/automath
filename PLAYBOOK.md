@@ -3,7 +3,7 @@
 **Project:** Automated Math Discovery (LLM-guided conjecture + Lean 4 formalization)
 **Dir:** `~/workspace/automath/`
 **Master playbook:** `~/workspace/MASTER_PLAYBOOK.md`
-**Status:** ROUND E COMPLETE (Sessions 1–6, 2026-04-27 → 2026-04-29). **5 of 10 calibration targets formalized** (C1, C2, C4@k=2, C5, C8) + **two new exact values E[|Aut|](6) = 349/80 and E[|Aut|](7) = 3479/720** computed (Python) and partially formalized (Lean N=2..5 native_decide; N=6, N=7 axiom). **Honest score estimate: 7.0–7.5** — the new values are characterization-class extensions per RESEARCH_LEARNINGS lesson 97; combined with the methods paper they're a publishable contribution but not transformative. (The original 8.0–8.5 ceiling estimate was optimistic.)
+**Status:** METHODS PAPER DRAFTED + COLD-READ SCORED (Sessions 1–7, 2026-04-27 → 2026-04-29). **5 of 10 calibration targets formalized** + **two new exact values E[|Aut|](6) = 349/80, E[|Aut|](7) = 3479/720** + **13-page methods paper draft**. **Cold-read score: 5.0** (per `papers/methods/cold_read_review.md`) — significantly below pre-cold-read estimate of 7.0–7.5. RESEARCH_LEARNINGS lesson 41 (score inflation) in action; cold-read score is the official one per CLAUDE.md. Path to 6.0–7.0 requires ~7–8 more sessions of revision (full 8/10 calibration, CombiBench head-to-head, N=6 packed-array kernel proof).
 **Created:** 2026-04-23
 **Owner:** Matt Loftus / Cedar Loop LLC
 
