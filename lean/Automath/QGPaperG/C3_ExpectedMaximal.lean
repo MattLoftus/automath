@@ -179,48 +179,26 @@ lemma bijection_sum (f : Perm (Fin N) → ℕ) :
     · intros π _; group
     · intros τ _; rfl
 
-/-- For position `b ∈ Fin N` with `a.val ≤ b.val`, the set of permutations `π`
-with `π b = max π[a..N-1]`. -/
-def maxAt (a b : Fin N) : Finset (Perm (Fin N)) :=
-  Finset.univ.filter (fun π : Perm (Fin N) =>
-    a.val ≤ b.val ∧ ∀ c : Fin N, a.val ≤ c.val → π c ≤ π b)
-
-/-- The classes `maxAt a b` for `b ∈ [a, N)` partition `Perm (Fin N)`. -/
-lemma partition_by_max_pos (a : Fin N) :
-    (Finset.univ : Finset (Perm (Fin N))).card =
-    ∑ b ∈ (Finset.univ : Finset (Fin N)).filter (fun b => a.val ≤ b.val), (maxAt a b).card := by
-  classical
-  -- For each π, exactly one b ∈ [a, N) has π b = max π[a..N-1].
-  -- Use Finset.card_eq_sum_card_fiberwise (or direct partition).
-  rw [Finset.card_univ]
-  -- Goal: Fintype.card (Perm (Fin N)) = ∑_b card(maxAt a b)
-  sorry  -- TODO: full partition argument
-
-/-- Bijection: `maxAt a b` and `maxAt a b'` have equal cardinality (for b, b' ≥ a).
-The bijection is post-composition by `Equiv.swap b b'`, restricted to permutations
-where the max of `π[a..N-1]` is at position `b` (resp. `b'`). -/
-lemma maxAt_card_eq (a b b' : Fin N) (hb : a.val ≤ b.val) (hb' : a.val ≤ b'.val) :
-    (maxAt a b).card = (maxAt a b').card := by
-  classical
-  -- Post-composition by Equiv.swap b b' gives a bijection.
-  sorry  -- TODO: bijection argument
-
 /-- For each fixed position `a ∈ Fin N`, the count of permutations `π` with
 `π a` being the maximum of `π[a..N-1]` equals `N!/(N - a.val)`. Stated as
 `(N - a.val) · count = N!` to avoid `ℕ` division.
 
 This is the analog of C1's `two_mul_permLtCount`, generalized to `(N - a.val)`-fold
-symmetry. The proof uses two sub-lemmas:
-1. `partition_by_max_pos`: the classes `maxAt a b` for `b ∈ [a, N)` partition `Perm (Fin N)`.
-2. `maxAt_card_eq`: any two of these classes have equal cardinality (via swap bijection).
+symmetry over positions `{a, a+1, ..., N-1}`.
 
-Combining: `(N - a.val) · |maxAt a a| = ∑_b |maxAt a b| = |Perm (Fin N)| = N!`. -/
+**Proof strategy (deferred):** Partition `Perm (Fin N)` into classes `M_b` for
+`b ∈ [a, N)` where `M_b := {π : π b is max of π[a..N-1]}`. Each `M_b` has equal
+cardinality to `M_a` via post-composition by `Equiv.swap a b`. Combining:
+`(N - a.val) · |M_a| = |Perm (Fin N)| = N!`.
+
+The full Lean proof requires (i) cardinality of the suffix `{b : a.val ≤ b.val}`
+equal to `N - a.val`, (ii) bijection between `M_a` and `M_b` via `Equiv.swap`, and
+(iii) the partition argument. Each piece is comparable in complexity to C8's 6-fold
+symmetry proof but parameterized by `(N - a.val)`. Estimated ~150 lines to complete.
+Currently `sorry`'d, similar to Round E's N=6 axiom situation. -/
 lemma card_perm_rtl_max_at_pos (a : Fin N) :
     (N - a.val) * (Finset.univ.filter
       (fun π : Perm (Fin N) => isRTLMax π a)).card = N.factorial := by
-  -- The full proof requires the two sub-lemmas above plus identifying
-  -- `Finset.univ.filter (isRTLMax π a)` with `maxAt a a`. Currently `sorry`'d
-  -- pending completion of `partition_by_max_pos` and `maxAt_card_eq`.
   sorry
 
 /-- Sum of right-to-left max counts over all permutations. -/
